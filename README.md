@@ -214,6 +214,45 @@ curl -sSL https://raw.githubusercontent.com/plaited/acp-harness/main/scripts/ins
 
 Supports: Claude Code, Cursor, OpenCode, Amp, Goose, Factory
 
+## Development
+
+This repository includes a bundled skill that provides AI coding agents with deep context about the ACP client API, evaluation patterns, and output formats.
+
+### AI-Assisted Development
+
+When working on this codebase with Claude Code (or other compatible agents), the `acp-harness` skill is automatically activated. It provides:
+
+- **Client API reference** - `createACPClient` configuration, methods, and helpers
+- **Output format schemas** - Summary and judge format specifications
+- **LLM-as-judge templates** - Evaluation prompt templates for scoring trajectories
+- **Downstream integration patterns** - Braintrust, jq, and custom scorer examples
+
+The skill lives in `.claude/skills/acp-harness/` and is auto-discovered when you open the project.
+
+### Setup
+
+```bash
+# Install dependencies
+bun install
+
+# Run checks (type check + lint + format)
+bun run check
+
+# Run tests
+bun test
+
+# Auto-fix lint and format issues
+bun run check:write
+```
+
+### Docker Integration Tests
+
+Integration tests require an API key and run in Docker:
+
+```bash
+ANTHROPIC_API_KEY=sk-... bun run test:docker
+```
+
 ## Requirements
 
 - **Runtime:** Bun >= 1.2.9
