@@ -6,10 +6,10 @@
 #   /plugin marketplace add plaited/acp-harness
 #
 # Usage:
-#   ./install-acp.sh                    # Interactive: asks which agent
-#   ./install-acp.sh --agent gemini     # Direct: install for Gemini CLI
-#   ./install-acp.sh --update           # Update existing installation
-#   ./install-acp.sh --uninstall        # Remove installation
+#   ./install.sh                    # Interactive: asks which agent
+#   ./install.sh --agent gemini     # Direct: install for Gemini CLI
+#   ./install.sh --update           # Update existing installation
+#   ./install.sh --uninstall        # Remove installation
 
 set -e
 
@@ -266,7 +266,7 @@ do_uninstall() {
 # ============================================================================
 
 show_help() {
-  echo "Usage: install-acp.sh [OPTIONS]"
+  echo "Usage: install.sh [OPTIONS]"
   echo ""
   echo "Install ACP Harness skill for AI coding agents supporting agent-skills-spec."
   echo ""
@@ -294,10 +294,10 @@ show_help() {
   echo "  └─────────────┴──────────────────┘"
   echo ""
   echo "Examples:"
-  echo "  ./install-acp.sh                  # Interactive mode"
-  echo "  ./install-acp.sh --agent gemini   # Install for Gemini CLI"
-  echo "  ./install-acp.sh --update         # Update existing"
-  echo "  ./install-acp.sh --uninstall      # Remove installation"
+  echo "  ./install.sh                  # Interactive mode"
+  echo "  ./install.sh --agent gemini   # Install for Gemini CLI"
+  echo "  ./install.sh --update         # Update existing"
+  echo "  ./install.sh --uninstall      # Remove installation"
 }
 
 main() {

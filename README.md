@@ -64,7 +64,7 @@ This package includes a comprehensive **eval-harness plugin** designed for AI-as
 **Other agents (Gemini CLI, GitHub Copilot, Cursor, OpenCode, Amp, Goose, Factory):**
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/plaited/acp-harness/main/scripts/install-acp.sh | bash
+curl -sSL https://raw.githubusercontent.com/plaited/acp-harness/main/scripts/install.sh | bash
 ```
 
 Once installed, the plugin auto-activates when working on evaluation tasks. Ask your AI agent to help you:
