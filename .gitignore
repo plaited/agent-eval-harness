@@ -1,0 +1,42 @@
+### DO NOT DELETE ###
+.env
+
+### NODE ###
+
+.npmrc
+
+# Locks
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Logs
+*.log
+
+# dependency packages
+**/node_modules
+
+# Build artifacts
+**/dist
+
+# Test artifacts
+**/coverage
+**/test-results/
+
+## Apple Junk ##
+**/.DS_Store
+
+# Yarn
+.pnp.*
+.yarn/*
+
+# VSCODE
+.vscode/extensions.json
+.vscode/settings.json
+
+# Zed
+.zed
+
+# Claude
+.claude/settings.local.json
+notes.md

@@ -1,0 +1,32 @@
+{
+  "include": ["src", ".claude/**/*"],
+  "compilerOptions": {
+    // Enable latest features
+    "lib": ["ESNext", "DOM", "dom.iterable"],
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleDetection": "force",
+    "allowJs": true,
+
+    // IDE may need this to properly show type errors
+    "rootDir": ".",
+
+    // Bundler mode
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+
+    // Best practices
+    "strict": true,
+    "skipLibCheck": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    // Some stricter flags (disabled by default)
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noPropertyAccessFromIndexSignature": false
+  }
+}

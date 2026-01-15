@@ -1,0 +1,28 @@
+{
+  "name": "acp-harness",
+  "owner": {
+    "name": "Plaited Labs"
+  },
+  "metadata": {
+    "description": "Unified ACP client and evaluation harness. Connect to ACP-compatible agents programmatically, capture full trajectories (tools, thoughts, plans), and pipe to downstream analysis tools."
+  },
+  "plugins": [
+    {
+      "name": "acp-harness",
+      "description": "ACP client and evaluation harness for TypeScript/Bun projects. Includes: createACPClient for programmatic agent access, run-harness.ts for trajectory capture, and LLM-as-judge evaluation templates. Requires Bun runtime.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Plaited Labs"
+      },
+      "source": "./.claude",
+      "category": "development",
+      "strict": false,
+      "mcpServers": {
+        "agent-skills-spec": {
+          "type": "http",
+          "url": "https://agentskills.io/mcp"
+        }
+      }
+    }
+  ]
+}
