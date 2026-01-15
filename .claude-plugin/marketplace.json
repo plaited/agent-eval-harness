@@ -1,5 +1,5 @@
 {
-  "name": "acp-harness",
+  "name": "plaited-acp-plugins",
   "owner": {
     "name": "Plaited Labs"
   },
@@ -8,7 +8,7 @@
   },
   "plugins": [
     {
-      "name": "acp-harness",
+      "name": "eval-harness",
       "description": "ACP client and evaluation harness for TypeScript/Bun projects. Includes: createACPClient for programmatic agent access, run-harness.ts for trajectory capture, and LLM-as-judge evaluation templates. Requires Bun runtime.",
       "version": "0.1.0",
       "author": {

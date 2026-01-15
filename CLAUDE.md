@@ -62,10 +62,15 @@ For complete conventions, see `.claude/rules/code-review.md`
 
 ### Plugin Development
 
-When working on plugins in `.claude/`:
+This project is a Claude Code plugin marketplace package. Structure:
+- `.claude-plugin/marketplace.json` - Plugin manifest for marketplace distribution
+- `.claude/` - Plugin source (skills, rules, settings)
+
+When working on plugins:
 - Clear cache after changes: `rm -rf ~/.claude/plugins-cache`
 - Restart Claude Code to see updates
 - Skills are auto-invoked (won't show in `/plugins` UI)
+- Test installation locally: `/plugin marketplace add plaited/acp-harness`
 
 ### Documentation
 
@@ -81,12 +86,14 @@ When working on plugins in `.claude/`:
 2. **Bun Required**: Development requires bun >= v1.2.9
 3. **ES2024 Features**: Uses Promise.withResolvers() and other modern APIs
 
-## Skills
+## Plugin
 
-The bundled skill `.claude/skills/acp-harness/` provides:
+The bundled **eval-harness** plugin (`.claude/skills/acp-harness/`) provides:
 - ACP client API documentation
 - Evaluation harness usage
 - Output format specifications
 - Downstream integration patterns
+
+Install via Claude Code: `/plugin marketplace add plaited/acp-harness`
 
 See `.claude/skills/acp-harness/SKILL.md` for complete documentation.

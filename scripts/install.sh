@@ -1,12 +1,15 @@
 #!/bin/bash
-# Install ACP Harness plugin for AI coding agents
-# Supports: Claude Code, Cursor, OpenCode, Amp, Goose, Factory
+# Install ACP Harness skill for AI coding agents supporting agent-skills-spec
+# Supports: Gemini CLI, GitHub Copilot, Cursor, OpenCode, Amp, Goose, Factory
+#
+# NOTE: Claude Code users should use the plugin marketplace instead:
+#   /plugin marketplace add plaited/acp-harness
 #
 # Usage:
-#   ./install-acp.sh                    # Interactive: asks which agent
-#   ./install-acp.sh --agent claude     # Direct: install for Claude Code
-#   ./install-acp.sh --update           # Update existing installation
-#   ./install-acp.sh --uninstall        # Remove installation
+#   ./install.sh                    # Interactive: asks which agent
+#   ./install.sh --agent gemini     # Direct: install for Gemini CLI
+#   ./install.sh --update           # Update existing installation
+#   ./install.sh --uninstall        # Remove installation
 
 set -e
 
@@ -24,11 +27,12 @@ TEMP_DIR=""
 
 get_skills_dir() {
   case "$1" in
-    claude)   echo ".claude/skills" ;;
-    cursor)   echo ".claude/skills" ;;     # Cursor reads .claude/skills
+    gemini)   echo ".gemini/skills" ;;
+    copilot)  echo ".github/skills" ;;
+    cursor)   echo ".cursor/skills" ;;
     opencode) echo ".opencode/skill" ;;    # OpenCode uses 'skill' (singular)
-    amp)      echo ".agents/skills" ;;
-    goose)    echo ".claude/skills" ;;     # Goose falls back to .claude/skills
+    amp)      echo ".amp/skills" ;;
+    goose)    echo ".goose/skills" ;;
     factory)  echo ".factory/skills" ;;
     *)        echo "" ;;
   esac
@@ -71,17 +75,21 @@ trap cleanup EXIT
 # ============================================================================
 
 detect_agent() {
-  # Check for existing installations
-  if [ -d ".claude" ]; then
-    echo "claude"
-  elif [ -d ".opencode" ]; then
-    echo "opencode"
-  elif [ -d ".agents" ]; then
-    echo "amp"
-  elif [ -d ".factory" ]; then
-    echo "factory"
+  # Check for existing installations (order matters - more specific first)
+  if [ -d ".gemini" ]; then
+    echo "gemini"
+  elif [ -d ".github" ]; then
+    echo "copilot"
   elif [ -d ".cursor" ]; then
     echo "cursor"
+  elif [ -d ".opencode" ]; then
+    echo "opencode"
+  elif [ -d ".amp" ]; then
+    echo "amp"
+  elif [ -d ".goose" ]; then
+    echo "goose"
+  elif [ -d ".factory" ]; then
+    echo "factory"
   else
     echo ""
   fi
@@ -93,16 +101,19 @@ ask_agent() {
 
   echo "Which AI coding agent are you using?"
   echo ""
-  echo "  ┌─────────────┬──────────────────┬─────────────────────────────────────┐"
-  echo "  │ Agent       │ Directory        │ Supported Features                  │"
-  echo "  ├─────────────┼──────────────────┼─────────────────────────────────────┤"
-  echo "  │ 1) Claude   │ .claude/         │ skills                              │"
-  echo "  │ 2) Cursor   │ .claude/         │ skills                              │"
-  echo "  │ 3) OpenCode │ .opencode/       │ skills                              │"
-  echo "  │ 4) Amp      │ .agents/         │ skills                              │"
-  echo "  │ 5) Goose    │ .claude/         │ skills                              │"
-  echo "  │ 6) Factory  │ .factory/        │ skills                              │"
-  echo "  └─────────────┴──────────────────┴─────────────────────────────────────┘"
+  echo "  ┌─────────────┬──────────────────┐"
+  echo "  │ Agent       │ Directory        │"
+  echo "  ├─────────────┼──────────────────┤"
+  echo "  │ 1) Gemini   │ .gemini/skills   │"
+  echo "  │ 2) Copilot  │ .github/skills   │"
+  echo "  │ 3) Cursor   │ .cursor/skills   │"
+  echo "  │ 4) OpenCode │ .opencode/skill  │"
+  echo "  │ 5) Amp      │ .amp/skills      │"
+  echo "  │ 6) Goose    │ .goose/skills    │"
+  echo "  │ 7) Factory  │ .factory/skills  │"
+  echo "  └─────────────┴──────────────────┘"
+  echo ""
+  echo "  Claude Code? Use: /plugin marketplace add plaited/acp-harness"
   echo ""
 
   if [ -n "$detected" ]; then
@@ -110,16 +121,17 @@ ask_agent() {
     echo ""
   fi
 
-  printf "Select agent [1-6]: "
+  printf "Select agent [1-7]: "
   read choice
 
   case "$choice" in
-    1) echo "claude" ;;
-    2) echo "cursor" ;;
-    3) echo "opencode" ;;
-    4) echo "amp" ;;
-    5) echo "goose" ;;
-    6) echo "factory" ;;
+    1) echo "gemini" ;;
+    2) echo "copilot" ;;
+    3) echo "cursor" ;;
+    4) echo "opencode" ;;
+    5) echo "amp" ;;
+    6) echo "goose" ;;
+    7) echo "factory" ;;
     *)
       print_error "Invalid choice"
       exit 1
@@ -254,9 +266,12 @@ do_uninstall() {
 # ============================================================================
 
 show_help() {
-  echo "Usage: install-acp.sh [OPTIONS]"
+  echo "Usage: install.sh [OPTIONS]"
   echo ""
-  echo "Install ACP Harness plugin for AI coding agents."
+  echo "Install ACP Harness skill for AI coding agents supporting agent-skills-spec."
+  echo ""
+  echo "NOTE: Claude Code users should use the plugin marketplace instead:"
+  echo "  /plugin marketplace add plaited/acp-harness"
   echo ""
   echo "Options:"
   echo "  --agent <name>    Install for specific agent"
@@ -264,24 +279,25 @@ show_help() {
   echo "  --uninstall       Remove installation"
   echo "  --help            Show this help message"
   echo ""
-  echo "Agent Compatibility:"
+  echo "Supported Agents:"
   echo ""
-  echo "  ┌─────────────┬──────────────────┬─────────────────────────────────────┐"
-  echo "  │ Agent       │ Directory        │ Supported Features                  │"
-  echo "  ├─────────────┼──────────────────┼─────────────────────────────────────┤"
-  echo "  │ claude      │ .claude/         │ skills                              │"
-  echo "  │ cursor      │ .claude/         │ skills                              │"
-  echo "  │ opencode    │ .opencode/       │ skills                              │"
-  echo "  │ amp         │ .agents/         │ skills                              │"
-  echo "  │ goose       │ .claude/         │ skills                              │"
-  echo "  │ factory     │ .factory/        │ skills                              │"
-  echo "  └─────────────┴──────────────────┴─────────────────────────────────────┘"
+  echo "  ┌─────────────┬──────────────────┐"
+  echo "  │ Agent       │ Directory        │"
+  echo "  ├─────────────┼──────────────────┤"
+  echo "  │ gemini      │ .gemini/skills   │"
+  echo "  │ copilot     │ .github/skills   │"
+  echo "  │ cursor      │ .cursor/skills   │"
+  echo "  │ opencode    │ .opencode/skill  │"
+  echo "  │ amp         │ .amp/skills      │"
+  echo "  │ goose       │ .goose/skills    │"
+  echo "  │ factory     │ .factory/skills  │"
+  echo "  └─────────────┴──────────────────┘"
   echo ""
   echo "Examples:"
-  echo "  ./install-acp.sh                  # Interactive mode"
-  echo "  ./install-acp.sh --agent claude   # Install for Claude Code"
-  echo "  ./install-acp.sh --update         # Update existing"
-  echo "  ./install-acp.sh --uninstall      # Remove installation"
+  echo "  ./install.sh                  # Interactive mode"
+  echo "  ./install.sh --agent gemini   # Install for Gemini CLI"
+  echo "  ./install.sh --update         # Update existing"
+  echo "  ./install.sh --uninstall      # Remove installation"
 }
 
 main() {
@@ -322,12 +338,23 @@ main() {
         agent=$(ask_agent)
       fi
 
+      # Redirect Claude users to marketplace
+      if [ "$agent" = "claude" ]; then
+        echo ""
+        print_info "Claude Code users should use the plugin marketplace:"
+        echo ""
+        echo "  /plugin marketplace add plaited/acp-harness"
+        echo ""
+        exit 0
+      fi
+
       # Validate agent
       local skills_dir
       skills_dir=$(get_skills_dir "$agent")
       if [ -z "$skills_dir" ]; then
         print_error "Unknown agent: $agent"
-        print_info "Valid agents: claude, cursor, opencode, amp, goose, factory"
+        print_info "Valid agents: gemini, copilot, cursor, opencode, amp, goose, factory"
+        print_info "Claude Code? Use: /plugin marketplace add plaited/acp-harness"
         exit 1
       fi
 

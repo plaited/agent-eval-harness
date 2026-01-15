@@ -42,9 +42,9 @@ console.log(summary.text, summary.completedToolCalls)
 await client.disconnect()
 ```
 
-## Recommended: Use the Bundled Skill
+## Recommended: Use the Bundled Plugin
 
-This package includes a comprehensive **acp-harness skill** designed for AI-assisted evaluation development. The skill provides:
+This package includes a comprehensive **eval-harness plugin** designed for AI-assisted evaluation development. The plugin provides:
 
 - Complete API reference for `createACPClient` and helpers
 - Harness CLI usage with all options and examples
@@ -53,21 +53,28 @@ This package includes a comprehensive **acp-harness skill** designed for AI-assi
 - Downstream integration patterns (Braintrust, jq, custom scorers)
 - Docker execution guidance
 
-### Install the Skill
+### Install the Plugin
 
-```bash
-# For Claude Code, Cursor, OpenCode, Amp, Goose, or Factory
-curl -sSL https://raw.githubusercontent.com/plaited/acp-harness/main/scripts/install-acp.sh | bash
+**Claude Code:**
+
+```
+/plugin marketplace add plaited/acp-harness
 ```
 
-Once installed, the skill auto-activates when working on evaluation tasks. Ask your AI agent to help you:
+**Other agents (Gemini CLI, GitHub Copilot, Cursor, OpenCode, Amp, Goose, Factory):**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/plaited/acp-harness/main/scripts/install.sh | bash
+```
+
+Once installed, the plugin auto-activates when working on evaluation tasks. Ask your AI agent to help you:
 
 - Set up evaluation prompts
 - Configure the harness CLI
 - Design scoring pipelines
 - Integrate with Braintrust or custom analysis tools
 
-The skill contains everything needed to build agent evaluations - use it as your primary reference.
+The plugin contains everything needed to build agent evaluations - use it as your primary reference.
 
 ## Development
 
