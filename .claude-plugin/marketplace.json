@@ -10,7 +10,7 @@
     {
       "name": "eval-harness",
       "description": "ACP client and evaluation harness for TypeScript/Bun projects. Includes: createACPClient for programmatic agent access, run-harness.ts for trajectory capture, and LLM-as-judge evaluation templates. Requires Bun runtime.",
-      "version": "0.1.0",
+      "version": "0.1.0-next.1",
       "author": {
         "name": "Plaited Labs"
       },
