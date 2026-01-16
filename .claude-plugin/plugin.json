@@ -12,5 +12,5 @@
       "url": "https://agentclientprotocol.com/mcp"
     }
   },
-  "skills": "./.claude/skills/skills/"
+  "skills": "./.claude/skills"
 }
