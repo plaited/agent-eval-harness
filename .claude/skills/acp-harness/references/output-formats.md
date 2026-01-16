@@ -5,13 +5,13 @@ The harness supports two output formats optimized for different use cases.
 ## Format Selection
 
 ```bash
-bun scripts/run-harness.ts prompts.jsonl --format <format> -o <output>
+bunx @plaited/acp-harness prompts.jsonl --format <format> -o <output>
 ```
 
 | Format | Files Created | Use Case |
 |--------|---------------|----------|
 | `summary` | Single JSONL | Quick metrics, dashboards, jq analysis |
-| `judge` | `.md` + `.full.jsonl` | LLM-as-judge evaluation |
+| `judge` | `.md` + `.full.jsonl` | Downstream LLM-as-judge scoring |
 
 ## Summary Format (Default)
 
@@ -55,10 +55,10 @@ cat results.jsonl | jq -s 'map(select(.status == "passed")) | length as $p | len
 
 ## Judge Format (Two-Tier)
 
-Creates two files for LLM-as-judge evaluation with step-level correlation.
+Creates two files for downstream LLM-as-judge scoring with step-level correlation.
 
 ```bash
-bun scripts/run-harness.ts prompts.jsonl --format judge -o results
+bunx @plaited/acp-harness prompts.jsonl --format judge -o results
 # Creates: results.md + results.full.jsonl
 ```
 
@@ -69,7 +69,7 @@ Human-readable summary with step IDs and code previews.
 **Structure:**
 
 ```markdown
-## Evaluation Record: <id>
+## Capture Record: <id>
 
 **Input:** <original prompt>
 
@@ -148,9 +148,9 @@ type TrajectoryStep =
 {"id":"test-001","input":"Create a primary button","output":"I created the button...","trajectory":[{"type":"thought","content":"I'll create a styled button template with createStyles","timestamp":100,"stepId":"test-001-step-1"},{"type":"tool_call","name":"Write","status":"completed","input":{"file_path":"src/button.tsx","content":"import { createStyles }..."},"output":"File written successfully","duration":234,"timestamp":150,"stepId":"test-001-step-2"},{"type":"message","content":"I created the button template","timestamp":500,"stepId":"test-001-step-3"}],"metadata":{"category":"ui","agent":"claude"},"timing":{"start":1704067200000,"end":1704067201234,"firstResponse":100},"status":"passed"}
 ```
 
-## Two-Tier Evaluation Workflow
+## Two-Tier Scoring Workflow
 
-### Direct Evaluation (Large Context)
+### Direct Scoring (Large Context)
 
 For judges with large context windows (Gemini 1M+, Claude 200k):
 
@@ -214,7 +214,7 @@ Both formats stream output line-by-line as results complete:
 
 ```bash
 # Watch results in real-time
-bun scripts/run-harness.ts prompts.jsonl --progress -o results.jsonl &
+bunx @plaited/acp-harness prompts.jsonl --progress -o results.jsonl &
 tail -f results.jsonl
 ```
 

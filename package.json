@@ -1,7 +1,7 @@
 {
-  "name": "@plaited/acp",
-  "version": "0.2.5",
-  "description": "ACP client and evaluation harness for TypeScript/Bun projects",
+  "name": "@plaited/acp-harness",
+  "version": "0.2.6",
+  "description": "CLI tool for capturing agent trajectories from ACP-compatible agents",
   "license": "ISC",
   "engines": {
     "bun": ">= v1.2.9"
@@ -14,17 +14,19 @@
     "url": "https://github.com/plaited/acp-harness/issues"
   },
   "homepage": "https://github.com/plaited/acp-harness/tree/main#readme",
-  "type": "module",
-  "main": "./src/acp.ts",
-  "exports": {
-    ".": "./src/acp.ts",
-    "./*.ts": "./src/*.ts"
+  "bin": {
+    "acp-harness": "./bin/cli.ts"
   },
+  "type": "module",
   "files": [
     "./src/**",
+    "./bin/**",
     "!./src/**/tests/*",
     "!./src/**/*.spec.ts",
-    "!./src/**/*.docker.ts"
+    "!./src/**/*.docker.ts",
+    "!./bin/**/tests/*",
+    "!./bin/**/*.spec.ts",
+    "!./bin/**/*.docker.ts"
   ],
   "publishConfig": {
     "access": "public"
@@ -36,7 +38,7 @@
     "check:types": "tsc --noEmit",
     "check:write": "biome check --write && format-package --write",
     "prepare": "git rev-parse --git-dir > /dev/null 2>&1 && git config core.hooksPath .hooks || true",
-    "test": "bun test ./src/ ./.claude",
+    "test": "bun test ./src/ ./bin/ ./.claude",
     "test:docker": "docker compose -f docker-compose.test.yml run --rm acp-test"
   },
   "lint-staged": {

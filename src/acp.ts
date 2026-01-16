@@ -1,5 +1,5 @@
 /**
- * @plaited/acp - ACP client and evaluation harness for TypeScript/Bun projects.
+ * @plaited/acp-harness - ACP client and evaluation harness for TypeScript/Bun projects.
  *
  * @remarks
  * This module provides a headless ACP client for programmatic agent interaction,

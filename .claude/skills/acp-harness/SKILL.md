@@ -1,6 +1,6 @@
 ---
 name: acp-harness
-description: Unified ACP client and evaluation harness. Connect to ACP-compatible agents programmatically, capture full trajectories (tools, thoughts, plans), and pipe to downstream analysis tools.
+description: CLI tool for capturing agent trajectories. Execute prompts against ACP-compatible agents, capture full trajectories (tools, thoughts, plans), and output structured JSONL for downstream scoring.
 compatibility: Bun >= 1.2.9
 ---
 
@@ -8,60 +8,70 @@ compatibility: Bun >= 1.2.9
 
 ## Purpose
 
-This skill provides a **unified toolkit for ACP client usage and agent evaluation**, optimized for TypeScript/JavaScript projects using Bun.
+CLI tool for capturing trajectories from ACP-compatible agents, optimized for TypeScript/JavaScript projects using Bun.
 
-1. **ACP Client API** - Headless programmatic access to ACP-compatible agents
-2. **Evaluation Harness** - Run prompts against agents and capture full trajectories
+**The harness captures. You score.**
+
+| Harness Provides | You Provide |
+|------------------|-------------|
+| Prompt execution against ACP agents | Scoring logic (Braintrust, custom scripts) |
+| Full trajectory capture (thoughts, tools, plans) | Pass/fail determination |
+| Structured JSONL output | LLM-as-judge prompts |
+| Reproducible execution environment | CI integration, golden file comparison |
 
 **Use this when:**
-- Comparing skills across different agents (Claude Code, Cursor, OpenCode, Amp, Goose, Factory)
-- Evaluating built-in tools vs MCP servers vs skills for the same task
-- Generating training data with full trajectory capture
-- Running regression tests in CI/CD pipelines
-- Building multi-agent applications on a headless transport layer
+- Capturing trajectories for downstream evaluation
+- Generating training data (SFT/DPO) with full context
+- Building regression test fixtures for agent behavior
+- Comparing agent responses across configurations
 
-## Foundation Use Cases
+## Installation
 
-The harness is a **foundation layer** - it captures trajectories; scoring happens downstream.
+```bash
+# Run without installing (recommended for CI)
+bunx @plaited/acp-harness prompts.jsonl -o results.jsonl
+
+# Or install globally for repeated use
+bun add -g @plaited/acp-harness
+acp-harness prompts.jsonl -o results.jsonl
+
+# Or add as project dependency
+bun add @plaited/acp-harness
+```
+
+**Note:** Examples below use `acp-harness` (the command available after global install). Replace with `bunx @plaited/acp-harness` if not installed globally.
+
+## Capture Workflow
 
 ```mermaid
 flowchart LR
-    Harness["ACP Harness"] -->|"trajectories"| Scoring["Braintrust / Custom Script"]
-    Scoring -->|"scores"| Decision["Informed Choices"]
+    Prompts["prompts.jsonl"] --> Harness["acp-harness"]
+    Agent["ACP Agent"] --> Harness
+    Harness -->|"JSONL"| Output["trajectories"]
+    Output --> Scoring["Your scoring logic"]
+    Scoring --> Decision["Informed choices"]
 ```
 
-| Use Case | Harness Provides | You Build |
+The harness is a **capture layer** - it executes prompts and records trajectories. Scoring happens in your codebase.
+
+| Use Case | Harness Captures | You Build |
 |----------|------------------|-----------|
-| **Cross-agent skill eval** | Same prompts → multiple agents → trajectories | Scoring pipeline (Braintrust, custom) |
+| **Agent comparison** | Same prompts → multiple agents → trajectories | Scoring pipeline (Braintrust, custom) |
 | **Tool comparison** | Trajectory with tool/skill attribution | Diff analysis, preference data |
 | **Training data** | Structured I/O with tool calls, plans, thoughts | SFT/DPO formatting |
-| **Regression testing** | Deterministic prompt → trajectory capture | CI integration, golden file comparison |
-| **Multi-agent apps** | `createACPClient` transport layer | Session management, UI, agent switching |
-
-### Agents Supporting Skills
-
-Skills can be installed across multiple agents, enabling cross-agent comparison:
-
-| Agent | Skills Directory | Install Command |
-|-------|------------------|-----------------|
-| Claude Code | `.claude/skills/` | `./install.sh --agent claude` |
-| Cursor | `.claude/skills/` | `./install.sh --agent cursor` |
-| OpenCode | `.opencode/skill/` | `./install.sh --agent opencode` |
-| Amp | `.agents/skills/` | `./install.sh --agent amp` |
-| Goose | `.claude/skills/` | `./install.sh --agent goose` |
-| Factory | `.factory/skills/` | `./install.sh --agent factory` |
+| **Regression testing** | Deterministic prompt → trajectory capture | Golden file comparison, CI assertions |
 
 ### Example: Comparing Built-in vs Skill
 
 ```bash
 # Run same prompt with built-in tool
-bun scripts/run-harness.ts prompts.jsonl \
-  --agent claude-code-acp \
+acp-harness prompts.jsonl \
+  --cmd "bunx claude-code-acp" \
   -o results-builtin.jsonl
 
 # Run same prompt with custom skill installed
-bun scripts/run-harness.ts prompts.jsonl \
-  --agent claude-code-acp \
+acp-harness prompts.jsonl \
+  --cmd "bunx claude-code-acp" \
   --cwd /project/with/typescript-lsp-skill \
   -o results-skill.jsonl
 
@@ -71,7 +81,7 @@ diff <(jq '.toolCalls' results-builtin.jsonl) <(jq '.toolCalls' results-skill.js
 
 ## Execution Environment
 
-**Recommendation:** Run evaluations in Docker containers for consistent, isolated execution.
+**Recommendation:** Run the harness in Docker containers for consistent, isolated execution.
 
 ```bash
 # Build and run with Docker Compose
@@ -104,43 +114,41 @@ This harness is optimized for TypeScript/JavaScript projects using Bun. It is **
 
 | Resource | Description |
 |----------|-------------|
-| `scripts/run-harness.ts` | Execute prompts against agent, capture trajectories |
-| [client-api.md](references/client-api.md) | `createACPClient` configuration, helpers |
+| `bunx @plaited/acp-harness` | Execute prompts against agent, capture trajectories |
 | [output-formats.md](references/output-formats.md) | JSONL schemas, format options |
-| [downstream.md](references/downstream.md) | Integration patterns (Braintrust, jq, LLM-as-judge) |
-| [llm-judge-templates.md](references/llm-judge-templates.md) | Evaluation prompt templates |
+| [downstream.md](references/downstream.md) | Integration patterns (Braintrust, jq, custom scorers) |
 
-## Evaluation Workflow
+## Output Pipeline
 
 ```mermaid
 flowchart LR
-    Prompts["prompts.jsonl"] --> Harness["run-harness.ts"]
+    Prompts["prompts.jsonl"] --> Harness["acp-harness"]
     Agent["ACP Agent"] --> Harness
     Harness --> Summary["summary.jsonl"]
-    Harness --> Judge["results.md + results.full.jsonl"]
-    Summary --> JQ["jq analysis"]
-    Judge --> LLM["LLM-as-judge"]
+    Harness --> Full["results.md + results.full.jsonl"]
+    Summary --> Your["Your scoring code"]
+    Full --> Your
 ```
 
-1. **Prepare** - Create `prompts.jsonl` with evaluation cases
+1. **Prepare** - Create `prompts.jsonl` with test cases
 2. **Execute** - Run harness against target agent
 3. **Capture** - Trajectories streamed to output files
-4. **Analyze** - Pipe to downstream tools for scoring
+4. **Score** - Pipe output to your scoring logic (Braintrust, jq, LLM-as-judge)
 
 ## Harness Script
 
 ### Basic Usage
 
 ```bash
-bun scripts/run-harness.ts <prompts.jsonl> --agent <command> [options]
+acp-harness <prompts.jsonl> --cmd <cmd> [options]
 ```
 
 ### Arguments
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `prompts.jsonl` | Input file with evaluation prompts | Required |
-| `-a, --agent` | ACP agent command | `"claude-code-acp"` |
+| `prompts.jsonl` | Input file with prompts to execute | Required |
+| `--cmd, --command` | ACP agent command (e.g., `bunx claude-code-acp`, `bun ./adapter.ts`) | `"claude-code-acp"` |
 | `-o, --output` | Output file/path | stdout |
 | `-c, --cwd` | Working directory for agent | current |
 | `-t, --timeout` | Request timeout in ms | `60000` |
@@ -152,26 +160,29 @@ bun scripts/run-harness.ts <prompts.jsonl> --agent <command> [options]
 ### Examples
 
 ```bash
-# Summary format (default) - minimal JSONL
-bun scripts/run-harness.ts prompts.jsonl -o results.jsonl
+# Using the default claude-code-acp adapter
+acp-harness prompts.jsonl -o results.jsonl
 
-# Judge format - creates two files for two-tier evaluation
-bun scripts/run-harness.ts prompts.jsonl --format judge -o results
+# Using bunx to run an adapter
+acp-harness prompts.jsonl --cmd "bunx claude-code-acp" -o results.jsonl
+
+# Using a local adapter script (great for custom adapters in same repo)
+acp-harness prompts.jsonl --cmd "bun ./my-adapter.ts" -o results.jsonl
+
+# Judge format - creates two files for downstream scoring
+acp-harness prompts.jsonl --format judge -o results
 # Creates: results.md (summary with step IDs) + results.full.jsonl (complete trajectory)
 
 # With MCP server (stdio transport)
-bun scripts/run-harness.ts prompts.jsonl \
+acp-harness prompts.jsonl \
   --mcp-server '{"type":"stdio","name":"fs","command":["mcp-filesystem","/data"]}'
 
 # With MCP server (HTTP transport)
-bun scripts/run-harness.ts prompts.jsonl \
+acp-harness prompts.jsonl \
   --mcp-server '{"type":"http","name":"api","url":"http://localhost:3000"}'
 
-# Different agent (Droid ACP adapter)
-bun scripts/run-harness.ts prompts.jsonl --agent droid-acp -o results.jsonl
-
 # Stream with progress
-bun scripts/run-harness.ts prompts.jsonl --progress -o results.jsonl
+acp-harness prompts.jsonl --progress -o results.jsonl
 ```
 
 ## Input Format
@@ -203,12 +214,12 @@ Minimal JSONL for quick metrics and analysis:
 
 ### Judge Format (two-tier)
 
-Creates two files for LLM-as-judge evaluation:
+Creates two files optimized for downstream LLM-as-judge scoring:
 
 **`<output>.md`** - Markdown summary with step IDs and code previews:
 
 ```markdown
-## Evaluation Record: test-001
+## Capture Record: test-001
 
 **Input:** Create a primary button
 
@@ -217,7 +228,7 @@ Creates two files for LLM-as-judge evaluation:
 2. [TOOL:Write] -> completed (234ms) [->test-001-step-2]
    File: src/button.tsx (847 chars)
    ```tsx
-   import { createStyles } from '@plaited/acp'
+   import { css } from 'some-css-lib'
 
    type ButtonProps = {
      label: string
@@ -225,7 +236,7 @@ Creates two files for LLM-as-judge evaluation:
    // ... 30 lines omitted ...
 
    export const Button = ({ label }: ButtonProps) => (
-     <button {...styles.btn}>{label}</button>
+     <button className={styles.btn}>{label}</button>
    )
    ```
 3. [MESSAGE] I created the button... [->test-001-step-3]
@@ -252,38 +263,6 @@ Creates two files for LLM-as-judge evaluation:
 | Claude/GPT-4 (128-200k) | Use `results.full.jsonl` for most runs |
 | Smaller models | Use `results.md`, retrieve specific steps by ID as needed |
 
-## Programmatic Usage
-
-```typescript
-import { createACPClient, createPrompt, summarizeResponse } from '@plaited/acp'
-
-// Requires: npm install -g @zed-industries/claude-code-acp
-const client = createACPClient({
-  command: ['claude-code-acp'],
-  cwd: '/path/to/project',
-})
-
-await client.connect()
-const session = await client.createSession()
-
-const { updates } = await client.promptSync(
-  session.id,
-  createPrompt('Create a button with hover state')
-)
-
-// Full trajectory is in updates
-const summary = summarizeResponse(updates)
-console.log({
-  text: summary.text,
-  toolCalls: summary.completedToolCalls,
-  hasErrors: summary.hasErrors
-})
-
-await client.disconnect()
-```
-
-See [client-api.md](references/client-api.md) for complete API documentation.
-
 ## Downstream Integration
 
 The harness outputs standard JSONL that pipes to any tool:
@@ -301,30 +280,31 @@ cat results.full.jsonl | your-gemini-judge.ts
 
 See [downstream.md](references/downstream.md) for integration patterns with Braintrust, Gemini, and custom scorers.
 
-## Evaluation Targets
+## Capture Targets
 
-| Target | How to Evaluate |
-|--------|-----------------|
-| **Agent capability** | Direct prompts, analyze trajectory quality |
-| **Skills** | Set `--cwd` to project with skill, test skill-specific prompts |
-| **MCP Servers** | Use `--mcp-server` flag, verify tool usage in trajectory |
+| Target | How to Capture |
+|--------|----------------|
+| **Agent capability** | Direct prompts, capture trajectory for analysis |
+| **Skills** | Set `--cwd` to project with skill, capture skill-specific behavior |
+| **MCP Servers** | Use `--mcp-server` flag, capture tool usage in trajectory |
 
-### Skill Evaluation
+### Capturing Skill Behavior
 
 ```bash
-bun scripts/run-harness.ts skill-prompts.jsonl \
+bunx @plaited/acp-harness skill-prompts.jsonl \
   --cwd /project/with/skill \
   -o results.jsonl
 ```
 
-### MCP Server Evaluation
+### Capturing MCP Server Usage
 
 ```bash
-bun scripts/run-harness.ts mcp-prompts.jsonl \
+bunx @plaited/acp-harness mcp-prompts.jsonl \
   --mcp-server '{"type":"stdio","name":"fs","command":["mcp-filesystem"]}' \
   -o results.jsonl
 ```
 
 ## Related
 
-- **@plaited/acp** - Core ACP client module
+- **[@agentclientprotocol/sdk](https://www.npmjs.com/package/@agentclientprotocol/sdk)** - ACP SDK for programmatic access
+- **[@zed-industries/claude-code-acp](https://www.npmjs.com/package/@zed-industries/claude-code-acp)** - Claude Code ACP adapter

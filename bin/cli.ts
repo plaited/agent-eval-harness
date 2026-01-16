@@ -8,14 +8,14 @@
  * runs evaluation prompts, capturing full trajectories for analysis.
  *
  * Usage:
- *   bun scripts/run-harness.ts <prompts.jsonl> --agent <command> -o <results.jsonl>
+ *   acp-harness <prompts.jsonl> --command <cmd> -o <results.jsonl>
  */
 
 import { appendFile } from 'node:fs/promises'
 import { parseArgs } from 'node:util'
 import type { PlanEntry, SessionNotification, ToolCall } from '@agentclientprotocol/sdk'
-import { createACPClient, createPrompt } from '@plaited/acp'
 import { z } from 'zod'
+import { createACPClient, createPrompt } from '../src/acp.ts'
 
 // ============================================================================
 // Schemas (SDK-compatible MCP server format)
@@ -126,10 +126,11 @@ type IndexedStep = TrajectoryStep & { stepId: string }
 const { values, positionals } = parseArgs({
   args: Bun.argv.slice(2),
   options: {
-    agent: {
+    command: {
       type: 'string',
-      short: 'a',
-      default: 'claude-code-acp',
+    },
+    cmd: {
+      type: 'string',
     },
     output: {
       type: 'string',
@@ -170,22 +171,23 @@ const { values, positionals } = parseArgs({
 })
 
 if (values.help || positionals.length === 0) {
+  // biome-ignore lint/suspicious/noConsole: CLI help output
   console.log(`
-Usage: bun scripts/run-harness.ts <prompts.jsonl> [options]
+Usage: acp-harness <prompts.jsonl> [options]
 
 Arguments:
-  prompts.jsonl   Input file with evaluation prompts
+  prompts.jsonl     Input file with evaluation prompts
 
 Options:
-  -a, --agent     ACP agent command (default: "claude-code-acp")
-  -o, --output    Output file (default: stdout)
-  -c, --cwd       Working directory for agent
-  -t, --timeout   Request timeout in ms (default: 60000)
-  -f, --format    Output format: summary, judge (default: summary)
-  --progress      Show progress to stderr
-  --append        Append to output file instead of overwriting
-  --mcp-server    MCP server config JSON (repeatable)
-  -h, --help      Show this help message
+  --cmd, --command  ACP agent command (default: "claude-code-acp")
+  -o, --output      Output file (default: stdout)
+  -c, --cwd         Working directory for agent
+  -t, --timeout     Request timeout in ms (default: 60000)
+  -f, --format      Output format: summary, judge (default: summary)
+  --progress        Show progress to stderr
+  --append          Append to output file instead of overwriting
+  --mcp-server      MCP server config JSON (repeatable)
+  -h, --help        Show this help message
 
 Input Format (JSONL):
   {"id":"test-001","input":"Create a button","expected":"should contain <button>","metadata":{"category":"ui"}}
@@ -196,14 +198,22 @@ Output Formats:
             1. Markdown with step IDs and head/tail previews → <output>.md
             2. Full trajectory JSONL for reference → <output>.full.jsonl
 
-Example:
-  bun scripts/run-harness.ts prompts.jsonl -o results.jsonl
-  bun scripts/run-harness.ts prompts.jsonl --format judge -o results
-  bun scripts/run-harness.ts prompts.jsonl --agent droid-acp -o results.jsonl
+Examples:
+  # Using the default claude-code-acp adapter
+  acp-harness prompts.jsonl -o results.jsonl
+
+  # Using bunx to run an adapter
+  acp-harness prompts.jsonl --cmd "bunx claude-code-acp" -o results.jsonl
+
+  # Using a local adapter script
+  acp-harness prompts.jsonl --cmd "bun ./my-adapter.ts" -o results.jsonl
+
+  # With judge format for LLM evaluation
+  acp-harness prompts.jsonl --cmd "bunx claude-code-acp" --format judge -o results
 
 Note: Requires an ACP-compatible agent. For Claude Code, install the adapter:
   npm install -g @zed-industries/claude-code-acp
-  ANTHROPIC_API_KEY=sk-... bun scripts/run-harness.ts prompts.jsonl -o results.jsonl
+  ANTHROPIC_API_KEY=sk-... acp-harness prompts.jsonl -o results.jsonl
 `)
   process.exit(values.help ? 0 : 1)
 }
@@ -212,9 +222,9 @@ Note: Requires an ACP-compatible agent. For Claude Code, install the adapter:
 // Helpers
 // ============================================================================
 
-/** Parse agent command string into command array */
-const parseAgentCommand = (agent: string): string[] => {
-  return agent.split(/\s+/).filter(Boolean)
+/** Parse command string into command array */
+const parseCommand = (cmd: string): string[] => {
+  return cmd.split(/\s+/).filter(Boolean)
 }
 
 /** Parse MCP server config from JSON string (SDK-compatible format) */
@@ -461,6 +471,7 @@ const writeOutput = async (line: string, outputPath?: string, append?: boolean):
       await Bun.write(outputPath, `${line}\n`)
     }
   } else {
+    // biome-ignore lint/suspicious/noConsole: CLI stdout output
     console.log(line)
   }
 }
@@ -489,7 +500,7 @@ const main = async () => {
     process.exit(1)
   }
 
-  const agentCommand = parseAgentCommand(values.agent ?? 'claude-code-acp')
+  const agentCommand = parseCommand(values.cmd ?? values.command ?? 'claude-code-acp')
   const outputPath = values.output
   const timeout = Number.parseInt(values.timeout ?? '60000', 10)
   const cwd = values.cwd
@@ -524,7 +535,7 @@ const main = async () => {
 
   // Log progress info
   logProgress(`Loaded ${prompts.length} prompts from ${promptsPath}`, showProgress)
-  logProgress(`Agent: ${agentCommand.join(' ')}`, showProgress)
+  logProgress(`Command: ${agentCommand.join(' ')}`, showProgress)
   logProgress(`Format: ${format}`, showProgress)
   if (format === 'judge') {
     logProgress(`Output: ${judgeMarkdownPath} + ${judgeFullPath}`, showProgress)

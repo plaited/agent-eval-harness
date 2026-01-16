@@ -5,7 +5,7 @@
 #
 # Usage:
 #   docker build -f Dockerfile.acp -t acp-harness .
-#   docker run --rm -e ANTHROPIC_API_KEY acp-harness bun scripts/run-harness.ts prompts.jsonl
+#   docker run --rm -e ANTHROPIC_API_KEY acp-harness bunx @plaited/acp-harness prompts.jsonl
 
 FROM oven/bun:1.2.9
 

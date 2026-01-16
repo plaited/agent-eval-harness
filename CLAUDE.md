@@ -37,18 +37,12 @@ This project uses `.claude/rules/` for project-specific guidance:
 
 ### Package Overview
 
-`@plaited/acp` provides a headless ACP (Agent Client Protocol) client for programmatic agent interaction, optimized for testing, evaluation, and training data generation.
+`@plaited/acp-harness` is a CLI tool for capturing agent trajectories from ACP-compatible agents. It executes prompts, captures full trajectories (tools, thoughts, plans), and outputs structured JSONL for downstream scoring.
 
-**Primary exports:**
-- `createACPClient` - Factory for headless ACP client instances
-- `createPrompt`, `createPromptWithFiles`, `createPromptWithImage` - Prompt builders
-- `summarizeResponse` - Response analysis utility
-
-**Re-exports from acp-utils (for advanced usage):**
-- Content builders: `createTextContent`, `createImageContent`, `createAudioContent`, `createResourceLink`, `createTextResource`, `createBlobResource`
-- Content extractors: `extractText`, `extractTextFromUpdates`, `extractToolCalls`, `extractLatestToolCalls`, `extractPlan`
-- Tool call utilities: `filterToolCallsByStatus`, `filterToolCallsByTitle`, `hasToolCallErrors`, `getCompletedToolCallsWithContent`
-- Plan utilities: `filterPlanByStatus`, `getPlanProgress`
+**CLI usage:**
+```bash
+bunx @plaited/acp-harness prompts.jsonl -o results.jsonl
+```
 
 ### Code Style Essentials
 
@@ -88,9 +82,8 @@ When working on plugins:
 
 ## Plugin
 
-The bundled **eval-harness** plugin (`.claude/skills/acp-harness/`) provides:
-- ACP client API documentation
-- Evaluation harness usage
+The bundled **acp-harness** skill (`.claude/skills/acp-harness/`) provides:
+- CLI usage and examples
 - Output format specifications
 - Downstream integration patterns
 

@@ -13,9 +13,9 @@
 # Determine test files to run
 if [ $# -eq 0 ]; then
   # No arguments: find all *.docker.ts files for Docker integration tests
-  docker_tests=$(find ./src -name "*.docker.ts" -type f 2>/dev/null)
+  docker_tests=$(find ./src ./bin -name "*.docker.ts" -type f 2>/dev/null)
   if [ -z "$docker_tests" ]; then
-    echo "No *.docker.ts files found in ./src"
+    echo "No *.docker.ts files found in ./src or ./bin"
     exit 0
   fi
   echo "Found Docker integration tests:"

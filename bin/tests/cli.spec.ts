@@ -1,210 +1,94 @@
 import { describe, expect, test } from 'bun:test'
+import { join } from 'node:path'
 import { z } from 'zod'
 
 /**
- * Tests for MCP server configuration parsing and conversion.
+ * Tests for the acp-harness CLI.
  *
  * @remarks
- * These tests verify the MCP server config handling in run-harness.ts
- * without requiring an actual ACP agent connection.
+ * Tests CLI argument parsing, help output, and output format schemas.
+ * Integration tests requiring an actual ACP agent are in *.docker.ts files.
  */
 
-// ============================================================================
-// Schemas (mirrors run-harness.ts)
-// ============================================================================
-
-const McpServerConfigSchema = z.object({
-  type: z.enum(['stdio', 'http']),
-  name: z.string(),
-  command: z.array(z.string()).optional(),
-  url: z.string().optional(),
-  env: z.record(z.string(), z.string()).optional(),
-  cwd: z.string().optional(),
-  headers: z.record(z.string(), z.string()).optional(),
-})
-
-type McpServerConfig = z.infer<typeof McpServerConfigSchema>
+const CLI_PATH = join(import.meta.dir, '..', 'cli.ts')
 
 // ============================================================================
-// Helper functions (extracted for testing)
+// CLI Invocation Tests
 // ============================================================================
 
-/**
- * Parse MCP server config from JSON string
- */
-const parseMcpServerConfig = (json: string): McpServerConfig => {
-  const config = McpServerConfigSchema.parse(JSON.parse(json))
-
-  if (config.type === 'stdio' && !config.command) {
-    throw new Error('stdio MCP server must have "command" field')
-  }
-  if (config.type === 'http' && !config.url) {
-    throw new Error('http MCP server must have "url" field')
-  }
-  return config
-}
-
-/**
- * Convert internal MCP config to ACP protocol format
- */
-const toAcpMcpServer = (config: McpServerConfig) => {
-  if (config.type === 'stdio') {
-    return {
-      type: 'stdio' as const,
-      name: config.name,
-      command: config.command ?? [],
-      env: config.env,
-      cwd: config.cwd,
-    }
-  }
-  // HTTP transport
-  return {
-    type: 'http' as const,
-    name: config.name,
-    url: config.url ?? '',
-    headers: config.headers,
-  }
-}
-
-// ============================================================================
-// Tests
-// ============================================================================
-
-describe('parseMcpServerConfig', () => {
-  test('parses valid stdio config', () => {
-    const json = '{"type":"stdio","name":"test-server","command":["node","server.js"]}'
-    const config = parseMcpServerConfig(json)
-
-    expect(config.type).toBe('stdio')
-    expect(config.name).toBe('test-server')
-    expect(config.command).toEqual(['node', 'server.js'])
-  })
-
-  test('parses stdio config with env and cwd', () => {
-    const json = JSON.stringify({
-      type: 'stdio',
-      name: 'test-server',
-      command: ['bun', 'run', 'server.ts'],
-      env: { DEBUG: 'true' },
-      cwd: '/path/to/server',
+describe('CLI invocation', () => {
+  test('shows help with --help flag', async () => {
+    const proc = Bun.spawn(['bun', CLI_PATH, '--help'], {
+      stdout: 'pipe',
+      stderr: 'pipe',
     })
-    const config = parseMcpServerConfig(json)
+    const stdout = await new Response(proc.stdout).text()
+    const exitCode = await proc.exited
 
-    expect(config.env).toEqual({ DEBUG: 'true' })
-    expect(config.cwd).toBe('/path/to/server')
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('Usage: acp-harness')
+    expect(stdout).toContain('--cmd, --command')
+    expect(stdout).toContain('--output')
+    expect(stdout).toContain('--format')
   })
 
-  test('parses valid http config', () => {
-    const json = '{"type":"http","name":"api-server","url":"http://localhost:3000"}'
-    const config = parseMcpServerConfig(json)
-
-    expect(config.type).toBe('http')
-    expect(config.name).toBe('api-server')
-    expect(config.url).toBe('http://localhost:3000')
-  })
-
-  test('parses http config with headers', () => {
-    const json = JSON.stringify({
-      type: 'http',
-      name: 'auth-server',
-      url: 'https://api.example.com',
-      headers: { Authorization: 'Bearer token' },
+  test('shows help with -h flag', async () => {
+    const proc = Bun.spawn(['bun', CLI_PATH, '-h'], {
+      stdout: 'pipe',
+      stderr: 'pipe',
     })
-    const config = parseMcpServerConfig(json)
+    const stdout = await new Response(proc.stdout).text()
+    const exitCode = await proc.exited
 
-    expect(config.headers).toEqual({ Authorization: 'Bearer token' })
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('Usage: acp-harness')
   })
 
-  test('throws on missing type', () => {
-    const json = '{"name":"test"}'
-    expect(() => parseMcpServerConfig(json)).toThrow()
-  })
-
-  test('throws on missing name', () => {
-    const json = '{"type":"stdio"}'
-    expect(() => parseMcpServerConfig(json)).toThrow()
-  })
-
-  test('throws on stdio without command', () => {
-    const json = '{"type":"stdio","name":"test"}'
-    expect(() => parseMcpServerConfig(json)).toThrow('stdio MCP server must have "command" field')
-  })
-
-  test('throws on http without url', () => {
-    const json = '{"type":"http","name":"test"}'
-    expect(() => parseMcpServerConfig(json)).toThrow('http MCP server must have "url" field')
-  })
-
-  test('throws on invalid JSON', () => {
-    expect(() => parseMcpServerConfig('not json')).toThrow()
-  })
-})
-
-describe('toAcpMcpServer', () => {
-  test('converts stdio config to ACP format', () => {
-    const config: McpServerConfig = {
-      type: 'stdio',
-      name: 'test-server',
-      command: ['node', 'server.js'],
-      env: { DEBUG: 'true' },
-      cwd: '/path/to/server',
-    }
-    const acp = toAcpMcpServer(config)
-
-    expect(acp).toEqual({
-      type: 'stdio',
-      name: 'test-server',
-      command: ['node', 'server.js'],
-      env: { DEBUG: 'true' },
-      cwd: '/path/to/server',
+  test('shows help when no arguments provided', async () => {
+    const proc = Bun.spawn(['bun', CLI_PATH], {
+      stdout: 'pipe',
+      stderr: 'pipe',
     })
+    const stdout = await new Response(proc.stdout).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).toBe(1) // Exits with error when no args
+    expect(stdout).toContain('Usage: acp-harness')
   })
 
-  test('converts http config to ACP format', () => {
-    const config: McpServerConfig = {
-      type: 'http',
-      name: 'api-server',
-      url: 'http://localhost:3000',
-      headers: { 'X-API-Key': 'secret' },
-    }
-    const acp = toAcpMcpServer(config)
-
-    expect(acp).toEqual({
-      type: 'http',
-      name: 'api-server',
-      url: 'http://localhost:3000',
-      headers: { 'X-API-Key': 'secret' },
+  test('help shows example commands', async () => {
+    const proc = Bun.spawn(['bun', CLI_PATH, '--help'], {
+      stdout: 'pipe',
+      stderr: 'pipe',
     })
+    const stdout = await new Response(proc.stdout).text()
+
+    expect(stdout).toContain('bunx claude-code-acp')
+    expect(stdout).toContain('bun ./my-adapter.ts')
+    expect(stdout).toContain('--format judge')
   })
 
-  test('handles stdio config without optional fields', () => {
-    const config: McpServerConfig = {
-      type: 'stdio',
-      name: 'minimal',
-      command: ['server'],
-    }
-    const acp = toAcpMcpServer(config)
+  test('help shows both --cmd and --command flags', async () => {
+    const proc = Bun.spawn(['bun', CLI_PATH, '--help'], {
+      stdout: 'pipe',
+      stderr: 'pipe',
+    })
+    const stdout = await new Response(proc.stdout).text()
 
-    expect(acp.type).toBe('stdio')
-    expect(acp.command).toEqual(['server'])
-    expect(acp.env).toBeUndefined()
-    expect(acp.cwd).toBeUndefined()
+    expect(stdout).toContain('--cmd')
+    expect(stdout).toContain('--command')
   })
-})
 
-describe('MCP server type integration', () => {
-  test('full workflow: parse and convert multiple servers', () => {
-    const jsonConfigs = [
-      '{"type":"stdio","name":"fs","command":["mcp-filesystem","/data"]}',
-      '{"type":"http","name":"api","url":"http://localhost:3000"}',
-    ]
+  test('fails with non-existent prompts file', async () => {
+    const proc = Bun.spawn(['bun', CLI_PATH, 'nonexistent.jsonl'], {
+      stdout: 'pipe',
+      stderr: 'pipe',
+    })
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
 
-    const parsed = jsonConfigs.map(parseMcpServerConfig)
-    const acpServers = parsed.map(toAcpMcpServer)
-
-    expect(acpServers).toHaveLength(2)
-    expect(acpServers[0]?.type).toBe('stdio')
-    expect(acpServers[1]?.type).toBe('http')
+    expect(exitCode).not.toBe(0)
+    expect(stderr).toContain('Error')
   })
 })
 

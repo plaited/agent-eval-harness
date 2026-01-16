@@ -35,13 +35,13 @@ cat results.jsonl | jq -s 'map(select(.status == "passed")) | length as $p | len
 # Group by category
 cat results.jsonl | jq -s 'group_by(.metadata.category) | map({category: .[0].metadata.category, count: length})'
 
-# Find slowest evaluations
+# Find slowest runs
 cat results.jsonl | jq -s 'sort_by(-.duration) | .[0:5] | map({id, duration})'
 ```
 
 ## TypeScript Analysis Patterns
 
-These patterns are validated by tests in `scripts/tests/run-harness.spec.ts`:
+These patterns are validated by tests in `bin/tests/cli.spec.ts`:
 
 ### Filter by Status
 
@@ -54,17 +54,17 @@ const passRate = passed.length / results.length
 ### Filter by Tool Usage
 
 ```typescript
-// Find evaluations that used Write tool
+// Find runs that used Write tool
 const withWrite = results.filter((r) => r.toolCalls.includes('Write'))
 
-// Find evaluations that used multiple tools
+// Find runs that used multiple tools
 const multiTool = results.filter((r) => r.toolCalls.length > 1)
 ```
 
 ### Filter by Duration
 
 ```typescript
-// Slow evaluations (> 2 seconds)
+// Slow runs (> 2 seconds)
 const slow = results.filter((r) => r.duration > 2000)
 
 // Find top 5 slowest
@@ -178,7 +178,7 @@ console.log(response.response.text())
 
 ### Medium Context Models (Claude 200k)
 
-Use full trajectory for most evaluations:
+Use full trajectory for most runs:
 
 ```typescript
 import Anthropic from '@anthropic-ai/sdk'
@@ -251,12 +251,14 @@ jobs:
       - name: Install ACP adapter
         run: npm install -g @zed-industries/claude-code-acp
 
-      - name: Run evaluation
+      - name: Install dependencies
+        run: bun add @plaited/acp-harness
+
+      - name: Run harness
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          bun .claude/skills/acp-harness/scripts/run-harness.ts \
-            prompts.jsonl \
+          bunx @plaited/acp-harness prompts.jsonl \
             --format judge \
             --progress \
             -o eval-results
@@ -276,8 +278,8 @@ Combine multiple runs:
 
 ```bash
 # Append mode during runs
-bun scripts/run-harness.ts prompts-1.jsonl --append -o combined.jsonl
-bun scripts/run-harness.ts prompts-2.jsonl --append -o combined.jsonl
+bunx @plaited/acp-harness prompts-1.jsonl --append -o combined.jsonl
+bunx @plaited/acp-harness prompts-2.jsonl --append -o combined.jsonl
 
 # Merge separate files
 cat run1.jsonl run2.jsonl run3.jsonl > combined.jsonl

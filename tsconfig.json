@@ -1,8 +1,8 @@
 {
-  "include": ["src", "skills"],
+  "include": ["src", "skills", "bin"],
   "compilerOptions": {
     // Enable latest features
-    "lib": ["ESNext", "DOM", "dom.iterable"],
+    "lib": ["ESNext"],
     "target": "ESNext",
     "module": "Preserve",
     "moduleDetection": "force",
