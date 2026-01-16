@@ -1,0 +1,23 @@
+{
+  "name": "plaited-acp-harness",
+  "metadata": {
+    "description": "Claude Code plugin for Agent Client Protocol testing and evaluation"
+  },
+  "owner": {
+    "name": "Plaited Labs"
+  },
+  "plugins": [
+    {
+      "name": "acp-harness",
+      "description": "Agent Client Protocol client and evaluation harness for TypeScript/Bun projects",
+      "source": "./",
+      "version": "0.2.3",
+      "author": {
+        "name": "Plaited Labs"
+      },
+      "license": "ISC",
+      "category": "development",
+      "keywords": ["acp", "evaluation", "testing", "harness", "agents", "benchmarking"]
+    }
+  ]
+}
