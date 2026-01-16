@@ -11,7 +11,6 @@
       "name": "acp-harness",
       "description": "Agent Client Protocol client and evaluation harness for TypeScript/Bun projects",
       "source": "./",
-      "version": "0.2.3",
       "author": {
         "name": "Plaited Labs"
       },
