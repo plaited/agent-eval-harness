@@ -1,6 +1,6 @@
 {
   "name": "eval-harness",
-  "version": "0.1.0-next.1",
+  "version": "0.2.0",
   "description": "Agent Client Protocol client and evaluation harness for TypeScript/Bun projects. Includes: createACPClient for programmatic agent access, run-harness.ts for trajectory capture, and LLM-as-judge evaluation templates. Requires Bun runtime.",
   "author": {
     "name": "Plaited Labs"
