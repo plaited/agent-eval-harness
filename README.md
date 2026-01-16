@@ -61,6 +61,12 @@ This package includes a comprehensive **eval-harness plugin** designed for AI-as
 claude plugins add github:plaited/marketplace
 ```
 
+Or install directly:
+
+```bash
+claude plugins add github:plaited/acp-harness/.claude
+```
+
 **Other AI coding agents:**
 
 ```bash
