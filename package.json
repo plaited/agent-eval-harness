@@ -1,6 +1,6 @@
 {
   "name": "@plaited/acp",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "ACP client and evaluation harness for TypeScript/Bun projects",
   "license": "ISC",
   "engines": {
