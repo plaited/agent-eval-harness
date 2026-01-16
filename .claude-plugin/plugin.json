@@ -11,5 +11,6 @@
       "type": "http",
       "url": "https://agentclientprotocol.com/mcp"
     }
-  }
+  },
+  "skills": "./.claude/skills"
 }

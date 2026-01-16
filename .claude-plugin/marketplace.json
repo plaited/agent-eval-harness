@@ -9,14 +9,7 @@
   "plugins": [
     {
       "name": "acp-harness",
-      "description": "Agent Client Protocol client and evaluation harness for TypeScript/Bun projects",
-      "source": "./",
-      "author": {
-        "name": "Plaited Labs"
-      },
-      "license": "ISC",
-      "category": "development",
-      "keywords": ["acp", "evaluation", "testing", "harness", "agents", "benchmarking"]
+      "source": "./"
     }
   ]
 }
