@@ -14,8 +14,12 @@
  * - validate-refs: Check reference solutions
  * - balance: Analyze test set coverage
  * - schemas: Export JSON schemas for non-TS users
+ * - adapter:scaffold: Scaffold new ACP adapter project
+ * - adapter:check: Validate adapter ACP compliance
  */
 
+import { adapterCheck } from '../src/adapter-check.ts'
+import { adapterScaffold } from '../src/adapter-scaffold.ts'
 import { balance } from '../src/balance.ts'
 import { calibrate } from '../src/calibrate.ts'
 import { capture } from '../src/capture.ts'
@@ -32,13 +36,15 @@ const printHelp = () => {
 acp-harness - CLI tool for agent evaluation
 
 Commands:
-  capture       Capture trajectories from ACP agent
-  trials        Run prompts multiple times for pass@k/pass^k metrics
-  summarize     Derive compact views from results
-  calibrate     Sample failures for grader review
-  validate-refs Check reference solutions against grader
-  balance       Analyze test set coverage
-  schemas       Export JSON schemas for non-TypeScript users
+  capture          Capture trajectories from ACP agent
+  trials           Run prompts multiple times for pass@k/pass^k metrics
+  summarize        Derive compact views from results
+  calibrate        Sample failures for grader review
+  validate-refs    Check reference solutions against grader
+  balance          Analyze test set coverage
+  schemas          Export JSON schemas for non-TypeScript users
+  adapter:scaffold Scaffold a new ACP adapter project
+  adapter:check    Validate adapter ACP compliance
 
 Run 'acp-harness <command> --help' for command-specific help.
 
@@ -57,6 +63,12 @@ Examples:
 
   # Export schemas
   acp-harness schemas --json -o schemas.json
+
+  # Scaffold new adapter
+  acp-harness adapter:scaffold my-agent -o ./adapters/my-agent
+
+  # Validate adapter compliance
+  acp-harness adapter:check bun ./my-adapter/src/index.ts
 
 Documentation: https://github.com/plaited/acp-harness
 `)
@@ -90,6 +102,14 @@ const main = async () => {
 
     case 'schemas':
       await schemasCli(args)
+      break
+
+    case 'adapter:scaffold':
+      await adapterScaffold(args)
+      break
+
+    case 'adapter:check':
+      await adapterCheck(args)
       break
 
     case '-h':
