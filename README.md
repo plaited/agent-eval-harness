@@ -59,7 +59,7 @@ bunx @plaited/acp-harness schemas CaptureResult --json
 bunx @plaited/acp-harness adapter:scaffold my-agent -o ./my-agent-acp
 
 # Validate adapter compliance
-bunx @plaited/acp-harness adapter:check bun ./my-adapter/src/index.ts
+bunx @plaited/acp-harness adapter:check bun ./my-adapter/src/main.ts
 ```
 
 ## Skills for AI Agents

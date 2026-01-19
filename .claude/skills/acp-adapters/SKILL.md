@@ -76,7 +76,7 @@ my-agent-acp/
 ├── package.json
 ├── tsconfig.json
 ├── src/
-│   ├── index.ts              # Entry point with AgentSideConnection
+│   ├── main.ts               # Entry point with AgentSideConnection
 │   ├── session-manager.ts    # Session lifecycle management
 │   └── handlers/
 │       ├── initialize.ts     # initialize method handler
@@ -115,7 +115,7 @@ acp-harness adapter:check <command> [args...]
 
 ```bash
 # Check a local adapter
-acp-harness adapter:check bun ./my-adapter/src/index.ts
+acp-harness adapter:check bun ./my-adapter/src/main.ts
 
 # Check with verbose output
 acp-harness adapter:check bunx my-published-adapter --verbose
@@ -127,7 +127,7 @@ acp-harness adapter:check python ./adapter.py --timeout 10000
 **Sample Output:**
 
 ```
-Checking ACP compliance for: bun ./my-adapter/src/index.ts
+Checking ACP compliance for: bun ./my-adapter/src/main.ts
 
 ✓ spawn: Adapter launched successfully
 ✓ initialize: Protocol version 1, capabilities: loadSession, promptCapabilities.image
@@ -205,12 +205,12 @@ bunx @anthropic/gemini-acp
 
 3. **Validate compliance:**
    ```bash
-   acp-harness adapter:check bun ./src/index.ts
+   acp-harness adapter:check bun ./src/main.ts
    ```
 
 4. **Test with harness:**
    ```bash
-   acp-harness capture prompts.jsonl bun ./src/index.ts -o results.jsonl
+   acp-harness capture prompts.jsonl bun ./src/main.ts -o results.jsonl
    ```
 
 ## References

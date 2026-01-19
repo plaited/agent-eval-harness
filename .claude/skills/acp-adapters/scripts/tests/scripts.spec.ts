@@ -30,7 +30,7 @@ describe('scaffold.ts', () => {
     expect(result.lang).toBe('ts')
     expect(result.files).toBeArray()
     expect(result.files).toContain('package.json')
-    expect(result.files).toContain('src/index.ts')
+    expect(result.files).toContain('src/main.ts')
   })
 
   test('supports Python language option', async () => {
