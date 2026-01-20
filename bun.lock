@@ -5,7 +5,7 @@
     "": {
       "name": "@plaited/acp",
       "dependencies": {
-        "@plaited/development-skills": "0.6.2",
+        "@plaited/development-skills": "0.6.3",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -99,7 +99,7 @@
 
     "@nodelib/fs.walk": ["@nodelib/fs.walk@1.2.8", "", { "dependencies": { "@nodelib/fs.scandir": "2.1.5", "fastq": "^1.6.0" } }, "sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg=="],
 
-    "@plaited/development-skills": ["@plaited/development-skills@0.6.2", "", { "peerDependencies": { "typescript-language-server": "^5.1.3" }, "bin": { "development-skills": "bin/cli.ts" } }, "sha512-9XZqdbQOT4EYhzYkIhVntCtFhFNZmrEOy8WbQwpjHZekU/ewjjIP09lw/cDxNuYvm/0i/L55t6prg1KwX16Lug=="],
+    "@plaited/development-skills": ["@plaited/development-skills@0.6.3", "", { "peerDependencies": { "typescript-language-server": "^5.1.3" }, "bin": { "development-skills": "bin/cli.ts" } }, "sha512-HjK0bqdKPKIqpyDvq/DJtRCAc+Um8iqx7RXfIrIwrMrnvTfjrNWDZ/qzwXx8SgXYoJ/daD0oqmrBFbyDmK29qQ=="],
 
     "@types/bun": ["@types/bun@1.3.6", "", { "dependencies": { "bun-types": "1.3.6" } }, "sha512-uWCv6FO/8LcpREhenN1d1b6fcspAB+cefwD7uti8C8VffIv0Um08TKMn98FynpTiU38+y2dUO55T11NgDt8VAA=="],
 

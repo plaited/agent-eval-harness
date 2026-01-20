@@ -223,16 +223,15 @@ An eval with only "make X work" misses "don't break Y". Balance analysis shows:
 
 ```json
 {
-  "total": 50,
-  "categories": {
-    "ui": 20,
-    "logic": 15,
-    "api": 10,
-    "edge-case": 5
-  },
-  "hasExpected": 45,
-  "hasReference": 30,
-  "hasMetadata": 50
+  "totalCases": 50,
+  "categories": [
+    { "name": "ui", "count": 20, "percentage": 40 },
+    { "name": "logic", "count": 15, "percentage": 30 },
+    { "name": "api", "count": 10, "percentage": 20 },
+    { "name": "edge-case", "count": 5, "percentage": 10 }
+  ],
+  "underrepresented": ["edge-case"],
+  "suggestions": ["Consider adding more test cases for: edge-case"]
 }
 ```
 
