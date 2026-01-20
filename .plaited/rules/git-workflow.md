@@ -1,15 +1,5 @@
 # Git Workflow
 
-## Syncing with Main
-
-Use fast-forward pull to sync your branch with main:
-
-```bash
-git pull origin main --ff
-```
-
-**Why fast-forward?** Keeps history linear and avoids unnecessary merge commits. If fast-forward isn't possible, resolve conflicts explicitly rather than creating merge commits.
-
 ## Commit Message Format
 
 Use multi-line commit messages for detailed changes:
