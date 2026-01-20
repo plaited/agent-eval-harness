@@ -38,8 +38,16 @@ const resolvePath = (path: string): string => {
   return `${process.cwd()}/${path}`
 }
 
-/** Analyze category distribution */
-const analyzeCategories = (prompts: PromptCase[], key: string): CategoryDistribution[] => {
+/**
+ * Analyze category distribution across prompts.
+ *
+ * @param prompts - Array of prompt cases
+ * @param key - Metadata key to analyze
+ * @returns Array of category distributions sorted by count descending
+ *
+ * @public
+ */
+export const analyzeCategories = (prompts: PromptCase[], key: string): CategoryDistribution[] => {
   const counts = new Map<string, number>()
 
   for (const prompt of prompts) {
@@ -65,16 +73,33 @@ const analyzeCategories = (prompts: PromptCase[], key: string): CategoryDistribu
   return distributions
 }
 
-/** Identify underrepresented categories */
-const findUnderrepresented = (distributions: CategoryDistribution[], threshold: number): string[] => {
+/**
+ * Identify underrepresented categories.
+ *
+ * @param distributions - Array of category distributions
+ * @param threshold - Percentage threshold relative to even distribution
+ * @returns Array of underrepresented category names
+ *
+ * @public
+ */
+export const findUnderrepresented = (distributions: CategoryDistribution[], threshold: number): string[] => {
   // Expected percentage if evenly distributed
   const evenPercentage = 100 / distributions.length
 
   return distributions.filter((d) => d.percentage < evenPercentage * (threshold / 100)).map((d) => d.name)
 }
 
-/** Generate suggestions for improvement */
-const generateSuggestions = (
+/**
+ * Generate suggestions for improving test set balance.
+ *
+ * @param distributions - Array of category distributions
+ * @param underrepresented - Array of underrepresented category names
+ * @param total - Total number of test cases
+ * @returns Array of suggestion strings
+ *
+ * @public
+ */
+export const generateSuggestions = (
   distributions: CategoryDistribution[],
   underrepresented: string[],
   total: number,

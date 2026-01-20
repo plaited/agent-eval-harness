@@ -68,7 +68,7 @@ Examples:
   acp-harness adapter:scaffold my-agent -o ./adapters/my-agent
 
   # Validate adapter compliance
-  acp-harness adapter:check bun ./my-adapter/src/index.ts
+  acp-harness adapter:check bun ./my-adapter/src/main.ts
 
 Documentation: https://github.com/plaited/acp-harness
 `)

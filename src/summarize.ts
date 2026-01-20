@@ -55,8 +55,15 @@ const loadResults = async (path: string): Promise<CaptureResult[]> => {
     })
 }
 
-/** Format result as summary JSONL */
-const formatSummary = (result: CaptureResult): SummaryResult => {
+/**
+ * Format capture result as compact summary.
+ *
+ * @param result - Full capture result
+ * @returns Compact summary result
+ *
+ * @public
+ */
+export const formatSummary = (result: CaptureResult): SummaryResult => {
   return {
     id: result.id,
     input: result.input,
@@ -66,8 +73,15 @@ const formatSummary = (result: CaptureResult): SummaryResult => {
   }
 }
 
-/** Format result as markdown with step IDs */
-const formatMarkdown = (result: CaptureResult): string => {
+/**
+ * Format capture result as markdown with step IDs.
+ *
+ * @param result - Full capture result
+ * @returns Markdown formatted string
+ *
+ * @public
+ */
+export const formatMarkdown = (result: CaptureResult): string => {
   const lines: string[] = [
     `## Evaluation Record: ${result.id}`,
     '',

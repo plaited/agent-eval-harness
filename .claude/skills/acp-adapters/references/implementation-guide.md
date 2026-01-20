@@ -42,7 +42,7 @@ cd my-agent-acp
 bun install
 
 # Run the adapter
-bun run src/index.ts
+bun run src/main.ts
 ```
 
 This creates a working adapter skeleton you can customize.
@@ -60,7 +60,7 @@ This creates a working adapter skeleton you can customize.
   "version": "1.0.0",
   "type": "module",
   "bin": {
-    "my-agent-acp": "./src/index.ts"
+    "my-agent-acp": "./src/main.ts"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.0.1"
@@ -88,7 +88,7 @@ This creates a working adapter skeleton you can customize.
 
 ### Step 2: Entry Point
 
-**src/index.ts:**
+**src/main.ts:**
 ```typescript
 #!/usr/bin/env bun
 
@@ -387,16 +387,16 @@ try {
 
 ```bash
 # Start adapter
-bun run src/index.ts
+bun run src/main.ts
 
 # In another terminal, send test messages
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1,"clientInfo":{"name":"test","version":"1.0.0"},"clientCapabilities":{}}}' | bun run src/index.ts
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1,"clientInfo":{"name":"test","version":"1.0.0"},"clientCapabilities":{}}}' | bun run src/main.ts
 ```
 
 ### Compliance Check
 
 ```bash
-acp-harness adapter:check bun ./src/index.ts
+acp-harness adapter:check bun ./src/main.ts
 ```
 
 ### Integration Test
@@ -406,7 +406,7 @@ acp-harness adapter:check bun ./src/index.ts
 echo '{"id":"test-1","input":"Hello"}' > test-prompts.jsonl
 
 # Run with harness
-acp-harness capture test-prompts.jsonl bun ./src/index.ts -o results.jsonl
+acp-harness capture test-prompts.jsonl bun ./src/main.ts -o results.jsonl
 
 # Check results
 cat results.jsonl | jq .

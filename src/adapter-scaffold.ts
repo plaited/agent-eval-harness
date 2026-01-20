@@ -49,11 +49,11 @@ const tsPackageJson = (name: string): string => `{
   "version": "1.0.0",
   "type": "module",
   "bin": {
-    "${name}-acp": "./src/index.ts"
+    "${name}-acp": "./src/main.ts"
   },
   "scripts": {
-    "start": "bun run src/index.ts",
-    "check": "bunx @plaited/acp-harness adapter:check bun ./src/index.ts"
+    "start": "bun run src/main.ts",
+    "check": "bunx @plaited/acp-harness adapter:check bun ./src/main.ts"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.0.1"
@@ -335,7 +335,7 @@ const tsSessionPromptHandler = (): string => `/**
  */
 
 import { sessionManager } from '../session-manager.ts'
-import { sendSessionUpdate } from '../index.ts'
+import { sendSessionUpdate } from '../main.ts'
 import type { ContentBlock } from '../types.ts'
 
 type PromptParams = {
@@ -486,7 +486,7 @@ bun install
 bun run start
 
 # Or run directly
-bun run src/index.ts
+bun run src/main.ts
 \`\`\`
 
 ## Verify Compliance
@@ -496,7 +496,7 @@ bun run src/index.ts
 bun run check
 
 # Or manually
-bunx @plaited/acp-harness adapter:check bun ./src/index.ts
+bunx @plaited/acp-harness adapter:check bun ./src/main.ts
 \`\`\`
 
 ## Test with Harness
@@ -506,7 +506,7 @@ bunx @plaited/acp-harness adapter:check bun ./src/index.ts
 echo '{"id":"test-1","input":"Hello"}' > prompts.jsonl
 
 # Run capture
-bunx @plaited/acp-harness capture prompts.jsonl bun ./src/index.ts -o results.jsonl
+bunx @plaited/acp-harness capture prompts.jsonl bun ./src/main.ts -o results.jsonl
 
 # View results
 cat results.jsonl | jq .
@@ -774,8 +774,8 @@ const scaffoldTypeScript = async (config: ScaffoldConfig): Promise<string[]> => 
   await Bun.write(join(outputDir, 'tsconfig.json'), tsTsConfig())
   files.push('tsconfig.json')
 
-  await Bun.write(join(outputDir, 'src', 'index.ts'), tsIndexFile(name))
-  files.push('src/index.ts')
+  await Bun.write(join(outputDir, 'src', 'main.ts'), tsIndexFile(name))
+  files.push('src/main.ts')
 
   await Bun.write(join(outputDir, 'src', 'types.ts'), tsTypesFile())
   files.push('src/types.ts')
@@ -929,6 +929,6 @@ ${result.lang === 'ts' ? '  bun install' : '  chmod +x adapter.py'}
 ${result.lang === 'ts' ? '  bun run start' : '  python adapter.py'}
 
 Verify compliance:
-  acp-harness adapter:check ${result.lang === 'ts' ? 'bun ./src/index.ts' : 'python ./adapter.py'}
+  acp-harness adapter:check ${result.lang === 'ts' ? 'bun ./src/main.ts' : 'python ./adapter.py'}
 `)
 }

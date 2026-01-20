@@ -6,18 +6,19 @@ The following standards are not automatically enforced by Biome but should be ch
 
 Before completing a code review, run these validation scripts:
 
-### Plugin Skills Validation
+### AgentSkills Validation
 
-When changes touch `.claude/skills/`, validate against the AgentSkills spec by running:
+When working with AgentSkills directories (`.plaited/skills/`, `.claude/skills/`, `.cursor/skills/`, `.factory/skills/`, etc.):
 
-```
-/validate-skill
+**Validate structure:**
+```bash
+bunx @plaited/development-skills validate-skill <path>
 ```
 
 This checks:
-- SKILL.md exists and has required frontmatter
-- Scripts have proper structure
-- References are valid markdown files
+- SKILL.md exists with required frontmatter (name, description)
+- Proper naming conventions
+- Valid markdown references
 
 ## TypeScript Style Conventions
 
@@ -198,38 +199,6 @@ import config from './config.json'
 ```
 
 **Rationale:** Import attributes (ES2025) explicitly declare module types to the runtime. The `with { type: 'json' }` syntax is the standard (replacing the deprecated `assert` keyword). This provides runtime enforcement—if the file isn't valid JSON, the import fails.
-
-## Module Organization
-
-Organize module exports into separate files by category:
-
-```
-module/
-├── module.types.ts      # Type definitions only
-├── module.schemas.ts    # Zod schemas and schema-inferred types
-├── module.constants.ts  # Constants and enum-like objects
-├── module-client.ts     # Implementation
-└── index.ts             # Public API exports (barrel file)
-```
-
-### Key Principles
-
-- **Types file**: Contains only type definitions, does NOT re-export from sibling files
-- **Schemas file**: Contains Zod schemas and their inferred types, does NOT export constants
-- **Constants file**: Contains all constant values (error codes, method names, defaults)
-- **Barrel file**: Uses wildcard exports; non-public files are simply not included
-
-```typescript
-// ✅ Good: Direct imports from specific files
-import type { Config } from './module.types.ts'
-import { ConfigSchema } from './module.schemas.ts'
-import { METHODS, ERROR_CODES } from './module.constants.ts'
-
-// ❌ Avoid: Expecting types file to re-export everything
-import { Config, ConfigSchema, METHODS } from './module.types.ts'
-```
-
-**Rationale:** Prevents circular dependencies, makes dependencies explicit, improves tree-shaking.
 
 ## Documentation Standards
 

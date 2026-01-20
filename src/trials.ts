@@ -34,8 +34,14 @@ import { McpServerSchema } from './schemas.ts'
  *
  * For our case where n = k (we run exactly k trials per prompt):
  * pass@k = 1 - (1 - passRate)^k (simplified)
+ *
+ * @param passes - Number of passing trials
+ * @param k - Total number of trials
+ * @returns Probability of at least one pass
+ *
+ * @public
  */
-const calculatePassAtK = (passes: number, k: number): number => {
+export const calculatePassAtK = (passes: number, k: number): number => {
   if (passes >= k) return 1
   if (passes === 0) return 0
 
@@ -49,8 +55,14 @@ const calculatePassAtK = (passes: number, k: number): number => {
  *
  * @remarks
  * This is simply passRate^k
+ *
+ * @param passes - Number of passing trials
+ * @param k - Total number of trials
+ * @returns Probability of all k samples passing
+ *
+ * @public
  */
-const calculatePassExpK = (passes: number, k: number): number => {
+export const calculatePassExpK = (passes: number, k: number): number => {
   if (passes === k) return 1
   if (passes === 0) return 0
 

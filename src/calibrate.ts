@@ -56,14 +56,33 @@ const loadResults = async (path: string): Promise<CaptureResult[]> => {
     })
 }
 
-/** Random sample from array */
-const sampleArray = <T>(arr: T[], n: number): T[] => {
+/**
+ * Random sample from array.
+ *
+ * @param arr - Array to sample from
+ * @param n - Number of samples to take
+ * @returns Array of sampled elements
+ *
+ * @public
+ */
+export const sampleArray = <T>(arr: T[], n: number): T[] => {
   const shuffled = [...arr].sort(() => 0.5 - Math.random())
   return shuffled.slice(0, n)
 }
 
-/** Get snippet of trajectory for review */
-const getTrajectorySnippet = (trajectory: TrajectoryStep[], maxSteps = 5): TrajectoryStep[] => {
+/**
+ * Get snippet of trajectory for review.
+ *
+ * @remarks
+ * Includes first 2 steps, middle step, and last 2 steps.
+ *
+ * @param trajectory - Full trajectory
+ * @param maxSteps - Maximum number of steps to include
+ * @returns Trajectory snippet
+ *
+ * @public
+ */
+export const getTrajectorySnippet = (trajectory: TrajectoryStep[], maxSteps = 5): TrajectoryStep[] => {
   // Include first and last steps, plus some from the middle
   if (trajectory.length <= maxSteps) return trajectory
 

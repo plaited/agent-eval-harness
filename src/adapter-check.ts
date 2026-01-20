@@ -25,7 +25,7 @@ import { ACP_METHODS, ACP_PROTOCOL_VERSION, DEFAULT_ACP_CLIENT_NAME } from './co
 
 /** Configuration for compliance check */
 export type CheckConfig = {
-  /** Command to spawn adapter (e.g., ['bun', './src/index.ts']) */
+  /** Command to spawn adapter (e.g., ['bun', './src/main.ts']) */
   command: string[]
   /** Timeout for each check in milliseconds */
   timeout: number
@@ -488,7 +488,7 @@ Checks Performed:
 
 Examples:
   # Check local TypeScript adapter
-  acp-harness adapter:check bun ./my-adapter/src/index.ts
+  acp-harness adapter:check bun ./my-adapter/src/main.ts
 
   # Check with verbose output
   acp-harness adapter:check bunx my-adapter --verbose
@@ -501,7 +501,7 @@ Examples:
 
   if (positionals.length === 0) {
     console.error('Error: adapter command is required')
-    console.error('Example: acp-harness adapter:check bun ./src/index.ts')
+    console.error('Example: acp-harness adapter:check bun ./src/main.ts')
     process.exit(1)
   }
 

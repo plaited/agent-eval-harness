@@ -58,7 +58,7 @@ gh api repos/<owner>/<repo>/pulls/<number>/comments --jq '
 **Step 4: Address ALL feedback**
 Create a checklist and address each item:
 - [ ] Human reviewer comments
-- [ ] Claude Code review comments
+- [ ] Agentic Code review comments
 - [ ] GitHub Advanced Security alerts (ReDoS, injection, etc.)
 - [ ] GitHub Code Quality comments (dead code, useless assignments)
 - [ ] Inline review suggestions
@@ -68,7 +68,7 @@ Create a checklist and address each item:
 | Source | API/Location | Description |
 |--------|--------------|-------------|
 | Human reviewers | `gh pr view --json reviews` | Code owners, team members |
-| Claude Code | `gh pr view --json comments` | AI-generated review (login: `claude`) |
+| AI code review | `gh pr view --json comments` | AI-generated review |
 | GitHub Advanced Security | `gh api .../code-scanning/alerts` | Security vulnerabilities (ReDoS, injection) |
 | GitHub Code Quality | `gh api .../pulls/.../comments` | Code quality issues (login: `github-code-quality[bot]`) |
 | Inline suggestions | `gh api .../pulls/.../comments` | Line-specific review comments |
@@ -76,9 +76,9 @@ Create a checklist and address each item:
 ### Filtering by Author
 
 ```bash
-# Get all automated reviews from PR
+# Get all automated reviews from PR (adjust regex for your AI reviewer logins)
 gh pr view <number> --repo <owner>/<repo> --json reviews --jq '
-  .reviews[] | select(.author.login | test("github-|claude")) | {author: .author.login, state: .state}
+  .reviews[] | select(.author.login | test("github-|bot")) | {author: .author.login, state: .state}
 '
 
 # Get specific inline comment by ID

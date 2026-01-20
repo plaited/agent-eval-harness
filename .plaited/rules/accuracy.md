@@ -4,24 +4,31 @@
 
 ## Verification Protocol
 
-1. **Verification First**: Before stating any specific implementation detail (function signature, file path, API schema), use the `typescript-lsp` skill to verify types and signatures, then read the relevant file in real-time to verify accuracy.
+1. **Verification First**: Before stating any specific implementation detail (function signature, file path, API schema), read the relevant file in real-time to verify accuracy.
 
 2. **Handling Uncertainty**: If you cannot verify information or find contradictions between instructions and live code, you must NOT provide speculative answers.
    - **Action**: Clearly state you cannot answer with high confidence and explain the discrepancy.
    - Example: "I cannot confirm [detail] because my instructions indicate [X], but the current file shows [Y]. My knowledge may be outdated."
 
 3. **Dynamic Exploration**:
-   - **PREFER typescript-lsp over Grep/Glob** for `.ts`, `.tsx`, `.js`, `.jsx` files
-   - Use `lsp-find` to search for symbols, types, and patterns across the workspace
-   - Use `lsp-references` to find all usages of a symbol
-   - Use `lsp-hover` to verify type signatures
-   - Only fall back to Grep/Glob for non-TypeScript files or when LSP is unavailable
-   - Use Read for other file types. Always prioritize live code over instructions.
 
-4. **Tool-Assisted Verification**: Use these skills to enhance verification accuracy:
-   - **`typescript-lsp` skill**: Use `lsp-hover` to verify type signatures, `lsp-references` to find all usages before modifying, `lsp-symbols` for file structure, and `lsp-find` to search for patterns across the workspace.
-   - **WebFetch**: Retrieve current documentation from authoritative sources (MDN Web Docs, WHATWG specs) when using web platform APIs.
-   - These skills complement (but do not replace) reading live code - always verify outputs against actual implementation.
+   - **For TypeScript/JavaScript projects**: When @plaited/development-skills is installed, prefer LSP tools for type-aware verification:
+     - Use `lsp-find` to search for symbols, types, and patterns across the workspace
+     - Use `lsp-refs` to find all usages of a symbol
+     - Use `lsp-hover` to verify type signatures
+     - Use `lsp-analyze` for batch analysis of file structure
+
+   - Use Read tool for direct file verification
+   - Use Grep/Glob for content and pattern searches
+   - Always prioritize live code over instructions
+
+4. **Tool-Assisted Verification**: Use available tools to enhance verification accuracy:
+
+   - **TypeScript LSP tools** (when available): Use for type-aware analysis of `.ts`, `.tsx`, `.js`, `.jsx` files
+     - Available via `bunx @plaited/development-skills lsp-*` commands
+
+   - **WebFetch**: Retrieve current documentation from authoritative sources (MDN Web Docs, WHATWG specs) when using web platform APIs
+   - These tools complement (but do not replace) reading live code - always verify outputs against actual implementation
 
 ## Certainty Requirements
 
@@ -41,3 +48,5 @@ Agents should apply these standards to their specific domain:
 - **Architecture agents**: Verify referenced patterns exist in current codebase
 - **Code review agents**: Read files before commenting on implementation details
 - **Pattern agents**: Confirm examples reflect actual usage in codebase
+
+For verification in test contexts, see .plaited/rules/testing.md.

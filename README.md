@@ -4,9 +4,11 @@
 [![CI](https://github.com/plaited/acp-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/plaited/acp-harness/actions/workflows/ci.yml)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
-CLI tool for capturing agent trajectories from ACP-compatible agents. Execute prompts, capture full trajectories (tools, thoughts, plans), and output structured JSONL for downstream scoring.
+CLI tool for capturing agent trajectories from ACP-compatible agents. Execute prompts, capture full trajectories (tools, thoughts, plans), and output structured JSONL for downstream scoring. Available as both a CLI tool and as installable skills for AI coding agents.
 
-## Quick Start
+## CLI Tool
+
+Use these tools directly via the CLI without installation:
 
 ```bash
 # Run without installing
@@ -24,48 +26,97 @@ npm install -g @anthropic-ai/claude-code-acp
 export ANTHROPIC_API_KEY=sk-...
 ```
 
-## Commands
+### Commands
 
-| Command | Purpose |
-|---------|---------|
-| `capture` | Trajectory capture (full JSONL) |
-| `trials` | Multi-run with pass@k metrics |
-| `summarize` | Derive compact views from results |
-| `calibrate` | Sample failures for review |
-| `validate-refs` | Check reference solutions |
-| `balance` | Analyze test set coverage |
-| `schemas` | Export JSON schemas |
+| Command | Description |
+|---------|-------------|
+| `capture <prompts> <cmd>` | Trajectory capture (full JSONL) |
+| `trials <prompts> <cmd>` | Multi-run with pass@k metrics |
+| `summarize <results>` | Derive compact views from results |
+| `calibrate <results>` | Sample failures for review |
+| `validate-refs <prompts>` | Check reference solutions |
+| `balance <prompts>` | Analyze test set coverage |
+| `schemas [name]` | Export JSON schemas |
+| `adapter:scaffold [name]` | Scaffold new ACP adapter project |
+| `adapter:check <cmd>` | Validate adapter ACP compliance |
 
-### capture
-
-Capture full trajectories from an ACP agent:
-
-```bash
-acp-harness capture <prompts.jsonl> <command> [args...] [options]
-
-Options:
-  -o, --output      Output file (default: stdout)
-  -c, --cwd         Working directory for agent
-  -t, --timeout     Request timeout in ms (default: 60000)
-  -g, --grader      Path to grader (.ts/.js module or executable script)
-  --progress        Show progress to stderr
-  --append          Append to output file
-  --mcp-server      MCP server config JSON (repeatable)
-  -h, --help        Show help
-```
-
-### trials
-
-Run multiple trials per prompt for pass@k analysis:
+### Examples
 
 ```bash
-acp-harness trials <prompts.jsonl> <command> [args...] [options]
+# Capture trajectories
+bunx @plaited/acp-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
 
-Options:
-  -k                Number of trials per prompt (default: 3)
-  -g, --grader      Path to grader (computes pass@k/pass^k metrics)
-  ...               (same as capture)
+# Run trials for pass@k analysis
+bunx @plaited/acp-harness trials prompts.jsonl bunx claude-code-acp -k 5 --grader ./grader.ts
+
+# Summarize results
+bunx @plaited/acp-harness summarize results.jsonl -o summary.jsonl
+
+# Export schemas
+bunx @plaited/acp-harness schemas CaptureResult --json
+
+# Scaffold a new adapter
+bunx @plaited/acp-harness adapter:scaffold my-agent -o ./my-agent-acp
+
+# Validate adapter compliance
+bunx @plaited/acp-harness adapter:check bun ./my-adapter/src/main.ts
 ```
+
+## Skills for AI Agents
+
+**Install skills** for use with AI coding agents:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/plaited/skills-installer/main/install.sh | bash -s -- --agent <agent-name> --project acp-harness
+```
+
+Replace `<agent-name>` with your agent: `claude`, `cursor`, `copilot`, `opencode`, `amp`, `goose`, `factory`
+
+**Update skills:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/plaited/skills-installer/main/install.sh | bash -s -- update --agent <agent-name> --project acp-harness
+```
+
+### Available Skills
+
+#### ACP Harness
+
+CLI tool for capturing agent trajectories, optimized for TypeScript/JavaScript projects using Bun.
+
+**Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `capture` | Execute prompts and capture full trajectories |
+| `trials` | Multi-run trials with pass@k/pass^k metrics |
+| `summarize` | Derive compact views from trajectory results |
+| `calibrate` | Sample failures for grader calibration |
+| `validate-refs` | Validate reference solutions against graders |
+| `balance` | Analyze test set coverage distribution |
+| `schemas` | Export Zod schemas as JSON Schema |
+
+**Use cases:**
+- Capturing trajectories for downstream evaluation (Braintrust, custom scorers)
+- Generating training data (SFT/DPO) with full context
+- Building regression test fixtures for agent behavior
+- Comparing agent responses across configurations
+
+#### ACP Adapters
+
+Discover, create, and validate ACP adapters for agent integration.
+
+**Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `adapter:scaffold` | Generate new adapter project with handlers |
+| `adapter:check` | Validate ACP protocol compliance |
+
+**Use cases:**
+- Finding existing adapters for your agent
+- Building custom ACP adapters from scratch
+- Validating adapter implementations
 
 ## Input Format
 
@@ -163,20 +214,6 @@ cat results.jsonl | jq '.trajectory[] | select(.type == "tool_call") | .name'
 
 # Use with your scoring pipeline
 cat results.jsonl | your-scoring-script.ts
-```
-
-## Plugin
-
-This package includes an **acp-harness skill** for AI coding agents with complete documentation:
-
-- CLI usage and examples
-- Output format schemas
-- Integration patterns (Braintrust, jq, custom scorers)
-
-**Other AI coding agents:**
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/plaited/marketplace/main/install.sh | bash -s -- --agent <agent-name> --plugin development-skills
 ```
 
 ## Development

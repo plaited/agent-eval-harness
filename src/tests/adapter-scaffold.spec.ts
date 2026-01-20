@@ -29,7 +29,7 @@ describe('runScaffold', () => {
     expect(result.lang).toBe('ts')
     expect(result.files).toContain('package.json')
     expect(result.files).toContain('tsconfig.json')
-    expect(result.files).toContain('src/index.ts')
+    expect(result.files).toContain('src/main.ts')
     expect(result.files).toContain('src/types.ts')
     expect(result.files).toContain('src/session-manager.ts')
     expect(result.files).toContain('src/handlers/initialize.ts')
@@ -42,9 +42,9 @@ describe('runScaffold', () => {
     const packageJson = await Bun.file(join(testDir, 'package.json')).text()
     expect(packageJson).toContain('"test-agent-acp"')
 
-    const indexTs = await Bun.file(join(testDir, 'src', 'index.ts')).text()
-    expect(indexTs).toContain('#!/usr/bin/env bun')
-    expect(indexTs).toContain('handleInitialize')
+    const mainTs = await Bun.file(join(testDir, 'src', 'main.ts')).text()
+    expect(mainTs).toContain('#!/usr/bin/env bun')
+    expect(mainTs).toContain('handleInitialize')
   })
 
   test('generates minimal TypeScript structure without README', async () => {
@@ -59,7 +59,7 @@ describe('runScaffold', () => {
 
     expect(result.files).not.toContain('README.md')
     expect(result.files).toContain('package.json')
-    expect(result.files).toContain('src/index.ts')
+    expect(result.files).toContain('src/main.ts')
   })
 
   test('generates Python adapter structure', async () => {
