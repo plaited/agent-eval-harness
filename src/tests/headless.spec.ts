@@ -287,17 +287,21 @@ describe('createOutputParser', () => {
       const line = JSON.stringify({ type: 'assistant', message: { text: 'Hello' } })
       const result = parser.parseLine(line)
       expect(result).not.toBeNull()
-      expect(result?.type).toBe('message')
-      expect(result?.content).toBe('Hello')
+      // Handle both single result and array of results
+      const singleResult = Array.isArray(result) ? result[0] : result
+      expect(singleResult?.type).toBe('message')
+      expect(singleResult?.content).toBe('Hello')
     })
 
     test('maps tool_use type to tool_call', () => {
       const line = JSON.stringify({ type: 'tool_use', name: 'Read' })
       const result = parser.parseLine(line)
       expect(result).not.toBeNull()
-      expect(result?.type).toBe('tool_call')
-      expect(result?.title).toBe('Read')
-      expect(result?.status).toBe('pending')
+      // Handle both single result and array of results
+      const singleResult = Array.isArray(result) ? result[0] : result
+      expect(singleResult?.type).toBe('tool_call')
+      expect(singleResult?.title).toBe('Read')
+      expect(singleResult?.status).toBe('pending')
     })
 
     test('returns null for unmapped event types', () => {
@@ -320,7 +324,9 @@ describe('createOutputParser', () => {
       const event = { type: 'assistant', message: { text: 'Hi' } }
       const line = JSON.stringify(event)
       const result = parser.parseLine(line)
-      expect(result?.raw).toEqual(event)
+      // Handle both single result and array of results
+      const singleResult = Array.isArray(result) ? result[0] : result
+      expect(singleResult?.raw).toEqual(event)
     })
   })
 
