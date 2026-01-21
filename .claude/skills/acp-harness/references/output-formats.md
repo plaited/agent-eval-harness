@@ -17,7 +17,7 @@ type CaptureResult = {
   id: string                    // Prompt identifier
   input: string                 // Original prompt text
   output: string                // Final agent response
-  expected?: string             // Expected output (if provided in prompt)
+  hint?: string                 // Grader context (if provided in prompt)
   trajectory: TrajectoryStep[]  // Full execution trajectory
   metadata: Record<string, unknown>  // Prompt metadata
   timing: {
@@ -156,7 +156,7 @@ acp-harness trials prompts.jsonl bunx claude-code-acp -k 5 --grader ./grader.ts 
 type TrialResult = {
   id: string                    // Prompt identifier
   input: string                 // Original prompt text
-  expected?: string             // Expected output (if provided)
+  hint?: string                 // Grader context (if provided)
   k: number                     // Number of trials
   passRate?: number             // passes / k (with grader only)
   passAtK?: number              // 1 - (1-passRate)^k (with grader only)
@@ -184,7 +184,7 @@ type TrialEntry = {
 ### Example (With Grader)
 
 ```jsonl
-{"id":"search-001","input":"Find the CEO of Anthropic","k":5,"passRate":0.8,"passAtK":0.9997,"passExpK":0.3277,"trials":[{"trialNum":1,"output":"Dario Amodei...","pass":true,"score":1.0,"duration":1234},{"trialNum":2,"output":"I don't know...","pass":false,"score":0.0,"reasoning":"Missing expected answer","duration":1100},...]}
+{"id":"search-001","input":"Find the CEO of Anthropic","k":5,"passRate":0.8,"passAtK":0.9997,"passExpK":0.3277,"trials":[{"trialNum":1,"output":"Dario Amodei...","pass":true,"score":1.0,"duration":1234},{"trialNum":2,"output":"I don't know...","pass":false,"score":0.0,"reasoning":"Missing hint content","duration":1100},...]}
 ```
 
 ## Step-Level Retrieval Pattern
@@ -232,14 +232,14 @@ acp-harness capture prompts.jsonl bunx claude-code-acp --grader ./grader.ts -o r
 All commands accept the same JSONL input:
 
 ```jsonl
-{"id":"test-001","input":"Create a primary button","expected":"should contain <button>","metadata":{"category":"ui"}}
+{"id":"test-001","input":"Create a primary button","hint":"should contain <button>","metadata":{"category":"ui"}}
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `id` | Yes | Unique identifier |
 | `input` | Yes | Prompt text for the agent |
-| `expected` | No | Expected output (for grader) |
+| `hint` | No | Grader context - what to look for |
 | `reference` | No | Reference solution (for validate-refs) |
 | `metadata` | No | Tags, category, difficulty for filtering |
 | `timeout` | No | Override default timeout for this prompt |

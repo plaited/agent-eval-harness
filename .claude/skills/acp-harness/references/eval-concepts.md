@@ -140,20 +140,20 @@ Review the markdown output and label each sample:
 
 **Too strict (exact match):**
 ```typescript
-// Bad: rejects "Dario Amodei is the CEO" when expected is "Dario Amodei"
-const pass = output === expected
+// Bad: rejects "Dario Amodei is the CEO" when hint is "Dario Amodei"
+const pass = output === hint
 ```
 
 **Better (contains check):**
 ```typescript
 // Good: accepts variations
-const pass = output.toLowerCase().includes(expected.toLowerCase())
+const pass = output.toLowerCase().includes(hint.toLowerCase())
 ```
 
 **Best (semantic match via LLM):**
 ```typescript
 // Best: understands meaning, not just text
-const pass = await llmJudge({ output, expected })
+const pass = await llmJudge({ output, hint })
 ```
 
 ## Reference Solutions
@@ -164,7 +164,7 @@ Reference solutions prove a task is solvable before blaming the agent.
 
 **Prompt file with reference:**
 ```jsonl
-{"id":"test-001","input":"Create a button component","expected":"<button>","reference":"export const Button = () => <button>Click</button>"}
+{"id":"test-001","input":"Create a button component","hint":"<button>","reference":"export const Button = () => <button>Click</button>"}
 ```
 
 ### Validation Workflow
@@ -182,7 +182,7 @@ cat validation.jsonl | jq 'select(.pass == false)'
 If your reference solution fails your own grader:
 - The task definition is ambiguous
 - The grader is too strict
-- The expected output is wrong
+- The hint is wrong
 
 Fix the eval before evaluating the agent.
 

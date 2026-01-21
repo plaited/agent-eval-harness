@@ -169,7 +169,7 @@ cat validation.jsonl | jq 'select(.pass == false)'
 If your reference solution fails your own grader:
 - The task definition is ambiguous
 - The grader is too strict
-- The expected output is wrong
+- The hint is wrong
 
 **Fix the eval before evaluating the agent.**
 
@@ -184,7 +184,7 @@ Prompts must include a `reference` field:
 ### Output Format
 
 ```jsonl
-{"id":"test-001","input":"Create a button component","reference":"export const Button = () => <button>Click</button>","pass":true,"score":1.0,"reasoning":"Contains expected element"}
+{"id":"test-001","input":"Create a button component","reference":"export const Button = () => <button>Click</button>","pass":true,"score":1.0,"reasoning":"Contains hint content"}
 ```
 
 ## Balance Command

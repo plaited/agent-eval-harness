@@ -19,13 +19,13 @@ Export a `grade` function matching the `Grader` type:
 // my-grader.ts
 import type { Grader } from '@plaited/acp-harness/schemas'
 
-export const grade: Grader = async ({ input, output, expected, trajectory }) => {
+export const grade: Grader = async ({ input, output, hint, trajectory }) => {
   // Your scoring logic
-  const pass = output.toLowerCase().includes(expected?.toLowerCase() ?? '')
+  const pass = output.toLowerCase().includes(hint?.toLowerCase() ?? '')
   return {
     pass,
     score: pass ? 1 : 0,
-    reasoning: pass ? 'Contains expected answer' : 'Missing expected answer'
+    reasoning: pass ? 'Contains hint content' : 'Missing hint content'
   }
 }
 ```
@@ -42,7 +42,7 @@ Use stdin/stdout JSON protocol:
 ```python
 #!/usr/bin/env python3
 """
-Grader that checks if output contains expected answer.
+Grader that checks if output contains hint content.
 Make executable: chmod +x grader.py
 """
 import json
@@ -53,16 +53,16 @@ data = json.load(sys.stdin)
 
 # Extract fields
 output = data.get("output", "").lower()
-expected = (data.get("expected") or "").lower()
+hint = (data.get("hint") or "").lower()
 
 # Scoring logic
-pass_result = expected in output if expected else True
+pass_result = hint in output if hint else True
 
 # Write result to stdout
 print(json.dumps({
     "pass": pass_result,
     "score": 1.0 if pass_result else 0.0,
-    "reasoning": "Contains expected" if pass_result else "Missing expected"
+    "reasoning": "Contains hint" if pass_result else "Missing hint"
 }))
 ```
 
@@ -81,7 +81,7 @@ Any executable can be a grader using stdin/stdout JSON:
 {
   "input": "Find the CEO of Anthropic",
   "output": "The CEO of Anthropic is Dario Amodei.",
-  "expected": "Dario Amodei",
+  "hint": "Dario Amodei",
   "trajectory": [
     {"type": "thought", "content": "I'll search...", "timestamp": 100},
     {"type": "tool_call", "name": "WebSearch", "status": "completed", ...},
@@ -95,7 +95,7 @@ Any executable can be a grader using stdin/stdout JSON:
 {
   "pass": true,
   "score": 1.0,
-  "reasoning": "Output contains expected CEO name"
+  "reasoning": "Output contains hint content"
 }
 ```
 
@@ -117,20 +117,20 @@ All graders must return this structure:
 
 ```bash
 #!/bin/bash
-# grader.sh - Check if output mentions expected keyword
+# grader.sh - Check if output mentions hint content
 
 # Read JSON from stdin
 INPUT=$(cat)
 
 # Extract fields with jq
 OUTPUT=$(echo "$INPUT" | jq -r '.output // ""')
-EXPECTED=$(echo "$INPUT" | jq -r '.expected // ""')
+HINT=$(echo "$INPUT" | jq -r '.hint // ""')
 
-# Check if output contains expected (case-insensitive)
-if echo "$OUTPUT" | grep -qi "$EXPECTED"; then
-  echo '{"pass": true, "score": 1.0, "reasoning": "Contains expected"}'
+# Check if output contains hint (case-insensitive)
+if echo "$OUTPUT" | grep -qi "$HINT"; then
+  echo '{"pass": true, "score": 1.0, "reasoning": "Contains hint"}'
 else
-  echo '{"pass": false, "score": 0.0, "reasoning": "Missing expected"}'
+  echo '{"pass": false, "score": 0.0, "reasoning": "Missing hint"}'
 fi
 ```
 
@@ -145,14 +145,14 @@ import type { Grader } from '@plaited/acp-harness/schemas'
 
 const client = new Anthropic()
 
-export const grade: Grader = async ({ input, output, expected }) => {
+export const grade: Grader = async ({ input, output, hint }) => {
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 256,
     messages: [{
       role: 'user',
       content: `Task: ${input}
-Expected: ${expected || 'N/A'}
+Hint: ${hint || 'N/A'}
 Agent output: ${output}
 
 Did the agent correctly complete the task? Respond with JSON:
@@ -171,10 +171,10 @@ Test graders independently before using with the harness:
 
 ```bash
 # Test Python grader
-echo '{"input":"hello","output":"hello world","expected":"world"}' | ./grader.py
+echo '{"input":"hello","output":"hello world","hint":"world"}' | ./grader.py
 
 # Test shell grader
-echo '{"input":"test","output":"the answer is 42","expected":"42"}' | ./grader.sh
+echo '{"input":"test","output":"the answer is 42","hint":"42"}' | ./grader.sh
 ```
 
 ## Commands That Support Graders
@@ -190,6 +190,6 @@ echo '{"input":"test","output":"the answer is 42","expected":"42"}' | ./grader.s
 
 1. **Keep graders simple** - Complex logic is hard to debug
 2. **Always return valid JSON** - Use `json.dumps()` or `JSON.stringify()`
-3. **Handle missing fields** - `expected` and `trajectory` may be undefined
+3. **Handle missing fields** - `hint` and `trajectory` may be undefined
 4. **Include reasoning** - Helps debug failures later
 5. **Test independently** - Validate grader before running full eval
