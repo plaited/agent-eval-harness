@@ -19,7 +19,7 @@ import { createPrompt } from './acp-helpers.ts'
 import { DEFAULT_HARNESS_TIMEOUT, HEAD_LINES, TAIL_LINES } from './constants.ts'
 import { loadGrader } from './grader-loader.ts'
 import type { CaptureResult, Grader, PromptCase, TrajectoryRichness, TrajectoryStep } from './schemas.ts'
-import { PromptCaseSchema, ToolInputSchema } from './schemas.ts'
+import { PromptCaseSchema, TokenUsageSchema, ToolInputSchema } from './schemas.ts'
 
 // ============================================================================
 // Types
@@ -198,20 +198,23 @@ const resolvePath = (path: string): string => {
  * - `full`: Has thoughts, tool calls, or plans (e.g., Claude Code)
  * - `messages-only`: Only message steps present
  * - `minimal`: Empty or unknown content
+ *
+ * Uses single-pass iteration with early exit for efficiency.
  */
 export const detectTrajectoryRichness = (trajectory: TrajectoryStep[]): TrajectoryRichness => {
-  const hasThoughts = trajectory.some((s) => s.type === 'thought')
-  const hasToolCalls = trajectory.some((s) => s.type === 'tool_call')
-  const hasPlans = trajectory.some((s) => s.type === 'plan')
-  const hasMessages = trajectory.some((s) => s.type === 'message')
+  let hasMessages = false
 
-  if (hasThoughts || hasToolCalls || hasPlans) {
-    return 'full'
+  for (const step of trajectory) {
+    // Early exit: any of these means 'full' richness
+    if (step.type === 'thought' || step.type === 'tool_call' || step.type === 'plan') {
+      return 'full'
+    }
+    if (step.type === 'message') {
+      hasMessages = true
+    }
   }
-  if (hasMessages) {
-    return 'messages-only'
-  }
-  return 'minimal'
+
+  return hasMessages ? 'messages-only' : 'minimal'
 }
 
 /**
@@ -219,7 +222,7 @@ export const detectTrajectoryRichness = (trajectory: TrajectoryStep[]): Trajecto
  *
  * @remarks
  * Token usage is adapter-dependent. If the adapter doesn't expose usage,
- * these fields will be undefined.
+ * these fields will be undefined. Uses Zod validation for runtime type safety.
  */
 export const extractTokenCounts = (updates: SessionNotification[]): { inputTokens?: number; outputTokens?: number } => {
   let inputTokens: number | undefined
@@ -227,15 +230,17 @@ export const extractTokenCounts = (updates: SessionNotification[]): { inputToken
 
   for (const update of updates) {
     // Check for token usage in update (adapter-specific)
-    // @ts-expect-error - usage may be present on some adapter responses
-    const usage = update.usage ?? update.update?.usage
-    if (usage && typeof usage === 'object') {
-      const usageRecord = usage as Record<string, unknown>
-      if (typeof usageRecord.inputTokens === 'number') {
-        inputTokens = (inputTokens ?? 0) + usageRecord.inputTokens
+    // ACP SDK doesn't declare 'usage' field, but adapters extend it at runtime
+    const updateRecord = update as Record<string, unknown>
+    const usageData = updateRecord.usage ?? (updateRecord.update as Record<string, unknown> | undefined)?.usage
+    const usage = TokenUsageSchema.safeParse(usageData)
+
+    if (usage.success) {
+      if (usage.data.inputTokens !== undefined) {
+        inputTokens = (inputTokens ?? 0) + usage.data.inputTokens
       }
-      if (typeof usageRecord.outputTokens === 'number') {
-        outputTokens = (outputTokens ?? 0) + usageRecord.outputTokens
+      if (usage.data.outputTokens !== undefined) {
+        outputTokens = (outputTokens ?? 0) + usage.data.outputTokens
       }
     }
   }

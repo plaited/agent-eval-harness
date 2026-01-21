@@ -297,6 +297,24 @@ export const ToolInputSchema = z
 /** Tool input type */
 export type ToolInput = z.infer<typeof ToolInputSchema>
 
+/**
+ * Token usage schema for adapter-specific usage data.
+ *
+ * @remarks
+ * ACP SDK's SessionNotification doesn't declare a 'usage' field, but adapters
+ * like Claude Code extend responses with token counts at runtime. This schema
+ * provides runtime validation for that extension.
+ */
+export const TokenUsageSchema = z
+  .object({
+    inputTokens: z.number().optional(),
+    outputTokens: z.number().optional(),
+  })
+  .passthrough()
+
+/** Token usage type */
+export type TokenUsage = z.infer<typeof TokenUsageSchema>
+
 /** Thought trajectory step */
 export const ThoughtStepSchema = z.object({
   type: z.literal('thought'),
