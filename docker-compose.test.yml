@@ -17,7 +17,6 @@ services:
       # Passes through from host environment (works in CI and local)
       - ANTHROPIC_API_KEY
       - GEMINI_API_KEY
-      - GOOGLE_API_KEY
     # Optional: mount src for live code debugging
     # volumes:
     #   - ./src:/app/src:ro

@@ -448,7 +448,7 @@ ANTHROPIC_API_KEY=sk-... GEMINI_API_KEY=... docker compose -f docker-compose.tes
 |-------------|--------|
 | **Node.js 24+** | Gemini CLI uses modern JS features (optional chaining) |
 | **Non-root user** | Claude CLI blocks `--dangerously-skip-permissions` as root |
-| **Both API key vars** | Pass `GEMINI_API_KEY` AND `GOOGLE_API_KEY` (Gemini prefers the latter) |
+| **Gemini API key** | Pass `GEMINI_API_KEY` for Gemini CLI |
 
 See [docker-evals.md](references/docker-evals.md) for complete Docker setup guide, debugging tips, and CI integration patterns.
 

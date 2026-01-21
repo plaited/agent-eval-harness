@@ -110,7 +110,6 @@ docker compose run --rm acp-test bash -c 'which gemini && ls -la $(which gemini)
 environment:
   - ANTHROPIC_API_KEY
   - GEMINI_API_KEY
-  - GOOGLE_API_KEY  # Gemini CLI prefers this one
 ```
 
 ## Debugging Checklist
@@ -130,7 +129,6 @@ docker compose run --rm acp-test bash -c '
 docker compose run --rm acp-test bash -c '
   echo "ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:+set}"
   echo "GEMINI_API_KEY: ${GEMINI_API_KEY:+set}"
-  echo "GOOGLE_API_KEY: ${GOOGLE_API_KEY:+set}"
 '
 
 # 3. Test CLI directly
@@ -153,7 +151,6 @@ test-integration:
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       run: docker compose -f docker-compose.test.yml run --rm acp-test
 ```
 
@@ -179,7 +176,6 @@ services:
     environment:
       - ANTHROPIC_API_KEY
       - GEMINI_API_KEY
-      - GOOGLE_API_KEY
 ```
 
 ## Related

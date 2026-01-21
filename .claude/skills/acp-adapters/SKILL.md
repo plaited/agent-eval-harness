@@ -110,7 +110,7 @@ Tested schemas are available in [schemas/](schemas/):
 | Schema | Agent | Mode | Auth Env Var | Status |
 |--------|-------|------|--------------|--------|
 | `claude-headless.json` | Claude Code | stream | `ANTHROPIC_API_KEY` | Tested |
-| `gemini-headless.json` | Gemini CLI | iterative | `GOOGLE_API_KEY` | Tested |
+| `gemini-headless.json` | Gemini CLI | iterative | `GEMINI_API_KEY` | Tested |
 
 **Usage:**
 ```bash
@@ -118,7 +118,7 @@ Tested schemas are available in [schemas/](schemas/):
 ANTHROPIC_API_KEY=... bunx @plaited/acp-harness headless --schema .claude/skills/acp-adapters/schemas/claude-headless.json
 
 # Gemini CLI
-GOOGLE_API_KEY=... bunx @plaited/acp-harness headless --schema .claude/skills/acp-adapters/schemas/gemini-headless.json
+GEMINI_API_KEY=... bunx @plaited/acp-harness headless --schema .claude/skills/acp-adapters/schemas/gemini-headless.json
 ```
 
 ## Agents with Headless CLI Support

@@ -11,20 +11,24 @@ CLI tool for capturing agent trajectories from ACP-compatible agents. Execute pr
 Use these tools directly via the CLI without installation:
 
 ```bash
-# Run without installing
-bunx @plaited/acp-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
+# Using built-in headless adapter (recommended - no extra install needed)
+export ANTHROPIC_API_KEY=sk-...
+bunx @plaited/acp-harness capture prompts.jsonl \
+  bunx @plaited/acp-harness headless --schema ./schemas/claude-headless.json \
+  -o results.jsonl
 
-# Or install globally
-bun add -g @plaited/acp-harness
-acp-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
+# Or with an external ACP adapter
+bunx @plaited/acp-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
 ```
 
-**Prerequisite:** Install an ACP adapter and set your API key:
+**Prerequisite:** Set your API key. The `headless` command works with any CLI agent that supports JSON output - no adapter installation required:
 
 ```bash
-npm install -g @zed-industries/claude-code-acp
-export ANTHROPIC_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-...   # For Claude
+export GEMINI_API_KEY=...         # For Gemini
 ```
+
+Pre-built schemas are available in `.claude/skills/acp-adapters/schemas/` for Claude and Gemini.
 
 ### Commands
 
@@ -37,17 +41,21 @@ export ANTHROPIC_API_KEY=sk-...
 | `validate-refs <prompts>` | Check reference solutions |
 | `balance <prompts>` | Analyze test set coverage |
 | `schemas [name]` | Export JSON schemas |
-| `adapter:scaffold [name]` | Scaffold new ACP adapter project |
+| `headless --schema <path>` | Schema-driven adapter for any CLI agent |
 | `adapter:check <cmd>` | Validate adapter ACP compliance |
 
 ### Examples
 
 ```bash
-# Capture trajectories
-bunx @plaited/acp-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
+# Capture trajectories using headless adapter (recommended)
+bunx @plaited/acp-harness capture prompts.jsonl \
+  bunx @plaited/acp-harness headless --schema ./schemas/claude-headless.json \
+  -o results.jsonl
 
 # Run trials for pass@k analysis
-bunx @plaited/acp-harness trials prompts.jsonl bunx claude-code-acp -k 5 --grader ./grader.ts
+bunx @plaited/acp-harness trials prompts.jsonl \
+  bunx @plaited/acp-harness headless --schema ./schemas/claude-headless.json \
+  -k 5 --grader ./grader.ts
 
 # Summarize results
 bunx @plaited/acp-harness summarize results.jsonl -o summary.jsonl
@@ -55,11 +63,9 @@ bunx @plaited/acp-harness summarize results.jsonl -o summary.jsonl
 # Export schemas
 bunx @plaited/acp-harness schemas CaptureResult --json
 
-# Scaffold a new adapter
-bunx @plaited/acp-harness adapter:scaffold my-agent -o ./my-agent-acp
-
 # Validate adapter compliance
-bunx @plaited/acp-harness adapter:check bun ./my-adapter/src/main.ts
+bunx @plaited/acp-harness adapter:check \
+  bunx @plaited/acp-harness headless --schema ./schemas/claude-headless.json
 ```
 
 ## Skills for AI Agents
@@ -110,10 +116,12 @@ Discover, create, and validate ACP adapters for agent integration.
 
 | Command | Description |
 |---------|-------------|
+| `headless` | Schema-driven adapter for any CLI agent |
 | `adapter:scaffold` | Generate new adapter project with handlers |
 | `adapter:check` | Validate ACP protocol compliance |
 
 **Use cases:**
+- Wrapping headless CLI agents with schema-driven adapter
 - Finding existing adapters for your agent
 - Building custom ACP adapters from scratch
 - Validating adapter implementations
@@ -233,13 +241,16 @@ cat results.jsonl | your-scoring-script.ts
 bun install          # Install dependencies
 bun run check        # Type check + lint + format
 bun test             # Run unit tests
+
+# Run integration tests in Docker (requires API keys)
+ANTHROPIC_API_KEY=sk-... docker compose -f docker-compose.test.yml run --rm acp-test
 ```
 
 ## Requirements
 
 - **Runtime:** Bun >= 1.2.9
-- **ACP Adapter:** `@zed-industries/claude-code-acp` or compatible
-- **API Key:** `ANTHROPIC_API_KEY` environment variable
+- **ACP Adapter:** Built-in `headless` command (recommended) or external adapter
+- **API Key:** `ANTHROPIC_API_KEY` for Claude, `GEMINI_API_KEY` for Gemini
 
 ## License
 

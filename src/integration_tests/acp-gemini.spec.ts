@@ -12,7 +12,7 @@
  *
  * Prerequisites:
  * 1. Gemini CLI installed (`npm install -g @anthropic-ai/gemini-cli`)
- * 2. API key: `GEMINI_API_KEY` or `GOOGLE_API_KEY` environment variable
+ * 2. API key: `GEMINI_API_KEY` environment variable
  *
  * These tests make real API calls and consume credits.
  *
@@ -34,14 +34,12 @@ const PROJECT_ROOT = process.cwd()
 // Schema path for Gemini headless adapter
 const SCHEMA_PATH = join(PROJECT_ROOT, '.claude/skills/acp-adapters/schemas/gemini-headless.json')
 
-// Gemini CLI accepts both GOOGLE_API_KEY and GEMINI_API_KEY
+// Gemini CLI accepts GEMINI_API_KEY
 // Use either one if available
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY ?? ''
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? ''
-const API_KEY = GOOGLE_API_KEY || GEMINI_API_KEY
 
 // Skip all tests if no API key is available
-const describeWithApiKey = API_KEY ? describe : describe.skip
+const describeWithApiKey = GEMINI_API_KEY ? describe : describe.skip
 
 describeWithApiKey('Headless Adapter Integration - Gemini', () => {
   let client: ACPClient
@@ -53,8 +51,7 @@ describeWithApiKey('Headless Adapter Integration - Gemini', () => {
       command: ['bun', 'src/headless-cli.ts', '--', '--schema', SCHEMA_PATH],
       timeout: 120000, // 2 min timeout for initialization
       env: {
-        GOOGLE_API_KEY: API_KEY,
-        GEMINI_API_KEY: API_KEY,
+        GEMINI_API_KEY
       },
     })
 
