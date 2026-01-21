@@ -233,8 +233,10 @@ export const createSessionManager = (config: SessionManagerConfig) => {
   const buildCommand = (session: Session, promptText: string): string[] => {
     const args = [...schema.command]
 
-    // Add output format flags
-    args.push(schema.output.flag, schema.output.value)
+    // Add output format flags (only if non-empty)
+    if (schema.output.flag) {
+      args.push(schema.output.flag, schema.output.value)
+    }
 
     // Add auto-approve flags
     if (schema.autoApprove) {
