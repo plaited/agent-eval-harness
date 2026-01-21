@@ -19,8 +19,8 @@
 
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from 'bun:test'
 import { join } from 'node:path'
-import { parseHeadlessConfig } from '../headless.schemas.ts'
-import { createSessionManager } from '../headless-session-manager.ts'
+import { parseHeadlessConfig } from '../headless/headless.schemas.ts'
+import { createSessionManager } from '../headless/headless-session-manager.ts'
 
 // Long timeout for real agent interactions (2 minutes)
 setDefaultTimeout(120000)

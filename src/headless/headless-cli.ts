@@ -17,7 +17,7 @@
 
 import { createInterface } from 'node:readline'
 import { parseArgs } from 'node:util'
-import { PROTOCOL_VERSION } from './constants.ts'
+import { PROTOCOL_VERSION } from '../schemas/constants.ts'
 import { type HeadlessAdapterConfig, parseHeadlessConfig } from './headless.schemas.ts'
 import { createSessionManager, type SessionManager } from './headless-session-manager.ts'
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
+import type { TrajectoryStep } from '../../schemas.ts'
 import { getTrajectorySnippet, sampleArray } from '../calibrate.ts'
-import type { TrajectoryStep } from '../schemas.ts'
 
 // ============================================================================
 // sampleArray

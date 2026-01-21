@@ -9,9 +9,9 @@
  */
 
 import { parseArgs } from 'node:util'
+import { loadGrader } from '../schemas/grader-loader.ts'
+import type { Grader, ValidationResult } from '../schemas.ts'
 import { loadPrompts } from './capture.ts'
-import { loadGrader } from './grader-loader.ts'
-import type { Grader, ValidationResult } from './schemas.ts'
 
 // ============================================================================
 // Types

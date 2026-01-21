@@ -10,9 +10,9 @@
  */
 
 import { parseArgs } from 'node:util'
-import { HEAD_LINES, MAX_CONTENT_LENGTH, TAIL_LINES } from './constants.ts'
-import { extractContent, extractFilePath, headTailPreview, loadResults, resolvePath } from './core.ts'
-import type { CaptureResult, SummaryResult } from './schemas.ts'
+import { extractContent, extractFilePath, headTailPreview, loadResults, resolvePath } from '../core.ts'
+import { HEAD_LINES, MAX_CONTENT_LENGTH, TAIL_LINES } from '../schemas/constants.ts'
+import type { CaptureResult, SummaryResult } from '../schemas.ts'
 
 // ============================================================================
 // Types

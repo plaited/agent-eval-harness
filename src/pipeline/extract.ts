@@ -11,8 +11,8 @@
 
 import { parseArgs } from 'node:util'
 import { loadJsonl, logProgress, writeOutput } from '../core.ts'
-import { parseHeadlessConfig } from '../headless.schemas.ts'
-import { createOutputParser } from '../headless-output-parser.ts'
+import { parseHeadlessConfig } from '../headless/headless.schemas.ts'
+import { createOutputParser } from '../headless/headless-output-parser.ts'
 import type { TrajectoryStep } from '../schemas.ts'
 import type { ExtractedResult, RawOutput } from './pipeline.types.ts'
 

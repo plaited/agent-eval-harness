@@ -9,8 +9,8 @@
  */
 
 import { parseArgs } from 'node:util'
+import type { BalanceAnalysis, CategoryDistribution, PromptCase } from '../schemas.ts'
 import { loadPrompts } from './capture.ts'
-import type { BalanceAnalysis, CategoryDistribution, PromptCase } from './schemas.ts'
 
 // ============================================================================
 // Types

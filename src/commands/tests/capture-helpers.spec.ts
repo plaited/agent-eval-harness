@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test'
+import type { ParsedUpdate } from '../../headless/headless-output-parser.ts'
+import type { TrajectoryStep } from '../../schemas.ts'
 import {
   detectTrajectoryRichness,
   extractContent,
@@ -9,8 +11,6 @@ import {
   headTailPreview,
   loadPrompts,
 } from '../capture.ts'
-import type { ParsedUpdate } from '../headless-output-parser.ts'
-import type { TrajectoryStep } from '../schemas.ts'
 
 // ============================================================================
 // loadPrompts

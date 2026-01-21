@@ -12,13 +12,13 @@
  */
 
 import { parseArgs } from 'node:util'
-import { DEFAULT_HARNESS_TIMEOUT, DEFAULT_TRIAL_COUNT } from './constants.ts'
-import { extractOutput, extractTrajectory, loadPrompts, logProgress, resolvePath, writeOutput } from './core.ts'
-import { loadGrader } from './grader-loader.ts'
-import { type HeadlessAdapterConfig, parseHeadlessConfig } from './headless.schemas.ts'
-import type { ParsedUpdate } from './headless-output-parser.ts'
-import { createSessionManager } from './headless-session-manager.ts'
-import type { Grader, TrialEntry, TrialResult } from './schemas.ts'
+import { extractOutput, extractTrajectory, loadPrompts, logProgress, resolvePath, writeOutput } from '../core.ts'
+import { type HeadlessAdapterConfig, parseHeadlessConfig } from '../headless/headless.schemas.ts'
+import type { ParsedUpdate } from '../headless/headless-output-parser.ts'
+import { createSessionManager } from '../headless/headless-session-manager.ts'
+import { DEFAULT_HARNESS_TIMEOUT, DEFAULT_TRIAL_COUNT } from '../schemas/constants.ts'
+import { loadGrader } from '../schemas/grader-loader.ts'
+import type { Grader, TrialEntry, TrialResult } from '../schemas.ts'
 
 // ============================================================================
 // Pass@k/Pass^k Calculation

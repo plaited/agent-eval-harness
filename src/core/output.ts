@@ -12,7 +12,7 @@
  */
 
 import { appendFile } from 'node:fs/promises'
-import { HEAD_LINES, TAIL_LINES } from '../constants.ts'
+import { HEAD_LINES, TAIL_LINES } from '../schemas/constants.ts'
 
 /**
  * Write output line to stdout or file.

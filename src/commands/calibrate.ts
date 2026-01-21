@@ -9,10 +9,10 @@
  */
 
 import { parseArgs } from 'node:util'
-import { DEFAULT_CALIBRATION_SAMPLE_SIZE } from './constants.ts'
-import { loadResults, resolvePath } from './core.ts'
-import { loadGrader } from './grader-loader.ts'
-import type { CalibrationSample, Grader, GraderResult, TrajectoryStep } from './schemas.ts'
+import { loadResults, resolvePath } from '../core.ts'
+import { DEFAULT_CALIBRATION_SAMPLE_SIZE } from '../schemas/constants.ts'
+import { loadGrader } from '../schemas/grader-loader.ts'
+import type { CalibrationSample, Grader, GraderResult, TrajectoryStep } from '../schemas.ts'
 
 // ============================================================================
 // Types

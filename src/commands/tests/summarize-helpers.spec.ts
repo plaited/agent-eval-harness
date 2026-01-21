@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { CaptureResult } from '../schemas.ts'
+import type { CaptureResult } from '../../schemas.ts'
 import { formatMarkdown, formatSummary } from '../summarize.ts'
 
 // ============================================================================

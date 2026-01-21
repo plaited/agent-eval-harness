@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
+import type { CategoryDistribution, PromptCase } from '../../schemas.ts'
 import { analyzeCategories, findUnderrepresented, generateSuggestions } from '../balance.ts'
-import type { CategoryDistribution, PromptCase } from '../schemas.ts'
 
 // ============================================================================
 // analyzeCategories

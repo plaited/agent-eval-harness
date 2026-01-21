@@ -13,10 +13,10 @@
  */
 
 import { parseArgs } from 'node:util'
-import { DEFAULT_HARNESS_TIMEOUT } from '../constants.ts'
 import { loadPrompts, logProgress, writeOutput } from '../core.ts'
-import { parseHeadlessConfig } from '../headless.schemas.ts'
-import { createSessionManager } from '../headless-session-manager.ts'
+import { parseHeadlessConfig } from '../headless/headless.schemas.ts'
+import { createSessionManager } from '../headless/headless-session-manager.ts'
+import { DEFAULT_HARNESS_TIMEOUT } from '../schemas/constants.ts'
 import type { RawOutput, RunConfig } from './pipeline.types.ts'
 
 /**

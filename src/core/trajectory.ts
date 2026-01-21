@@ -8,7 +8,7 @@
  * @packageDocumentation
  */
 
-import type { ParsedUpdate } from '../headless-output-parser.ts'
+import type { ParsedUpdate } from '../headless/headless-output-parser.ts'
 import type { TrajectoryRichness, TrajectoryStep } from '../schemas.ts'
 import { ToolInputSchema } from '../schemas.ts'
 

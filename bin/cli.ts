@@ -17,15 +17,15 @@
  * - headless: Schema-driven adapter for any headless CLI agent
  */
 
-import { balance } from '../src/balance.ts'
-import { calibrate } from '../src/calibrate.ts'
-import { capture } from '../src/capture.ts'
+import { balance } from '../src/commands/balance.ts'
+import { calibrate } from '../src/commands/calibrate.ts'
+import { capture } from '../src/commands/capture.ts'
+import { summarize } from '../src/commands/summarize.ts'
+import { trials } from '../src/commands/trials.ts'
+import { validateRefs } from '../src/commands/validate-refs.ts'
 import { headless } from '../src/headless.ts'
 import { compare, extract, format, grade, run } from '../src/pipeline.ts'
-import { schemasCli } from '../src/schemas-cli.ts'
-import { summarize } from '../src/summarize.ts'
-import { trials } from '../src/trials.ts'
-import { validateRefs } from '../src/validate-refs.ts'
+import { schemasCli } from '../src/schemas/schemas-cli.ts'
 
 const [command, ...args] = Bun.argv.slice(2)
 

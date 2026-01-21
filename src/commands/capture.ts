@@ -12,7 +12,6 @@
  */
 
 import { parseArgs } from 'node:util'
-import { DEFAULT_HARNESS_TIMEOUT } from './constants.ts'
 import {
   detectTrajectoryRichness,
   extractOutput,
@@ -23,12 +22,13 @@ import {
   logProgress,
   resolvePath,
   writeOutput,
-} from './core.ts'
-import { loadGrader } from './grader-loader.ts'
-import { type HeadlessAdapterConfig, parseHeadlessConfig } from './headless.schemas.ts'
-import type { ParsedUpdate } from './headless-output-parser.ts'
-import { createSessionManager, type ProcessExitInfo, type PromptResult } from './headless-session-manager.ts'
-import type { CaptureResult, Grader, TrajectoryRichness } from './schemas.ts'
+} from '../core.ts'
+import { type HeadlessAdapterConfig, parseHeadlessConfig } from '../headless/headless.schemas.ts'
+import type { ParsedUpdate } from '../headless/headless-output-parser.ts'
+import { createSessionManager, type ProcessExitInfo, type PromptResult } from '../headless/headless-session-manager.ts'
+import { DEFAULT_HARNESS_TIMEOUT } from '../schemas/constants.ts'
+import { loadGrader } from '../schemas/grader-loader.ts'
+import type { CaptureResult, Grader, TrajectoryRichness } from '../schemas.ts'
 
 // ============================================================================
 // Re-exports for backward compatibility
@@ -44,7 +44,7 @@ export {
   hasToolErrors,
   headTailPreview,
   loadPrompts,
-} from './core.ts'
+} from '../core.ts'
 
 // ============================================================================
 // Types

@@ -18,22 +18,29 @@
  * @packageDocumentation
  */
 
-export type { BalanceConfig } from './balance.ts'
-export { balance, runBalance } from './balance.ts'
-export type { CalibrateConfig } from './calibrate.ts'
-export { calibrate, runCalibrate } from './calibrate.ts'
+export type { BalanceConfig } from './commands/balance.ts'
+export { balance, runBalance } from './commands/balance.ts'
+export type { CalibrateConfig } from './commands/calibrate.ts'
+export { calibrate, runCalibrate } from './commands/calibrate.ts'
 // Config types
-export type { CaptureConfig } from './capture.ts'
+export type { CaptureConfig } from './commands/capture.ts'
 // Command implementations (for programmatic use)
-export { capture, extractOutput, extractTrajectory, hasToolErrors, loadPrompts, runCapture } from './capture.ts'
+export {
+  capture,
+  extractOutput,
+  extractTrajectory,
+  hasToolErrors,
+  loadPrompts,
+  runCapture,
+} from './commands/capture.ts'
+export type { SummarizeConfig } from './commands/summarize.ts'
+export { runSummarize, summarize } from './commands/summarize.ts'
+export type { TrialsConfig } from './commands/trials.ts'
+export { runTrials, trials } from './commands/trials.ts'
+export type { ValidateRefsConfig } from './commands/validate-refs.ts'
+export { runValidateRefs, validateRefs } from './commands/validate-refs.ts'
 export type { HeadlessAdapterConfig } from './headless.ts'
 // Headless adapter factory
 export { headless } from './headless.ts'
-export type { SchemasConfig } from './schemas-cli.ts'
-export { runSchemas, schemasCli } from './schemas-cli.ts'
-export type { SummarizeConfig } from './summarize.ts'
-export { runSummarize, summarize } from './summarize.ts'
-export type { TrialsConfig } from './trials.ts'
-export { runTrials, trials } from './trials.ts'
-export type { ValidateRefsConfig } from './validate-refs.ts'
-export { runValidateRefs, validateRefs } from './validate-refs.ts'
+export type { SchemasConfig } from './schemas/schemas-cli.ts'
+export { runSchemas, schemasCli } from './schemas/schemas-cli.ts'

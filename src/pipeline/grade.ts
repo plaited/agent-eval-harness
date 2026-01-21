@@ -10,7 +10,7 @@
 
 import { parseArgs } from 'node:util'
 import { loadJsonl, logProgress, writeOutput } from '../core.ts'
-import { loadGrader } from '../grader-loader.ts'
+import { loadGrader } from '../schemas/grader-loader.ts'
 import type { ExtractedResult, GradedResult } from './pipeline.types.ts'
 
 /**
