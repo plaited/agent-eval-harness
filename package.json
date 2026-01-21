@@ -1,6 +1,6 @@
 {
   "name": "@plaited/acp-harness",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "description": "CLI tool for capturing agent trajectories from ACP-compatible agents",
   "license": "ISC",
   "engines": {
