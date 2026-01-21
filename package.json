@@ -21,7 +21,8 @@
   "exports": {
     ".": "./src/harness.ts",
     "./schemas": "./src/schemas.ts",
-    "./headless": "./src/headless.ts"
+    "./headless": "./src/headless.ts",
+    "./pipeline": "./src/pipeline.ts"
   },
   "files": [
     "./src/**",

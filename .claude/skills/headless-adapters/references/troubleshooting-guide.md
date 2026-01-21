@@ -83,7 +83,7 @@ Use wildcard `[*]` syntax in JSONPath expressions to iterate over array items:
    cat raw-output.jsonl | jq '.message.content[] | select(.type == "tool_use")'
    ```
 
-5. **Update schema with correct paths** and test with `adapter:check`
+5. **Update schema with correct paths** and test with `headless --debug`
 
 ---
 
@@ -162,7 +162,7 @@ Use `stdin: true` when:
    ```
 
 3. **Check process spawn in adapter:**
-   - Enable verbose mode: `adapter:check --verbose`
+   - Enable verbose mode: `headless --debug --verbose`
    - Look for command construction in output
 
 4. **Update schema:**
@@ -565,7 +565,7 @@ The `result` configuration marks when the agent is done:
 
 1. **Check if events are being matched at all:**
    ```bash
-   # Run adapter:check with verbose mode
+   # Run headless --debug with verbose mode
    bunx @plaited/agent-eval-harness headless --schema schema.json --debug
    ```
 
@@ -678,7 +678,7 @@ If you've tried all the debugging steps and still can't get your schema working,
    ```
 
 4. **Error messages:**
-   - From `adapter:check`
+   - From `headless --debug`
    - From `capture` command
    - From CLI stderr
 

@@ -12,10 +12,10 @@
 
 import { afterEach, describe, expect, test } from 'bun:test'
 import { unlink, writeFile } from 'node:fs/promises'
+import type { ParsedUpdate } from '../../headless/headless-output-parser.ts'
 import { loadJsonl, loadPrompts, loadResults } from '../loading.ts'
 import { headTailPreview, resolvePath } from '../output.ts'
 import { detectTrajectoryRichness, extractOutput, extractTrajectory, hasToolErrors } from '../trajectory.ts'
-import type { ParsedUpdate } from '../../headless/headless-output-parser.ts'
 
 // ============================================================================
 // Loading Tests

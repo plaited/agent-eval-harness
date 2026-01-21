@@ -14,20 +14,24 @@ agent-eval-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
 
 ```typescript
 type CaptureResult = {
-  id: string                    // Prompt identifier
-  input: string                 // Original prompt text
-  output: string                // Final agent response
-  hint?: string                 // Grader context (if provided in prompt)
-  trajectory: TrajectoryStep[]  // Full execution trajectory
+  id: string                      // Prompt identifier
+  input: string | string[]        // Single prompt or multi-turn conversation
+  output: string                  // Final agent response
+  hint?: string                   // Grader context (if provided in prompt)
+  trajectory: TrajectoryStep[]    // Full execution trajectory
   metadata: Record<string, unknown>  // Prompt metadata
   timing: {
-    start: number               // Unix timestamp (ms)
-    end: number                 // Unix timestamp (ms)
-    firstResponse?: number      // Time to first response (ms)
+    start: number                 // Unix timestamp (ms)
+    end: number                   // Unix timestamp (ms)
+    firstResponse?: number        // Time to first response (ms)
+    sessionCreation: number       // Time to create session (ms)
+    total: number                 // Total duration (end - start, ms)
+    inputTokens?: number          // Input tokens consumed (if available)
+    outputTokens?: number         // Output tokens generated (if available)
   }
-  toolErrors: boolean           // Whether any tool calls failed
-  errors?: string[]             // Error messages (if any)
-  score?: GraderResult          // Grader score (if grader was provided)
+  toolErrors: boolean             // Whether any tool calls failed
+  errors?: string[]               // Error messages (if any)
+  score?: GraderResult            // Grader score (if grader was provided)
 }
 
 type TrajectoryStep =

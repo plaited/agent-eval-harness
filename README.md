@@ -27,7 +27,7 @@ export GEMINI_API_KEY=...         # For Gemini
 
 Pre-built schemas are available in `.claude/skills/headless-adapters/schemas/` for Claude and Gemini.
 
-### Commands
+### Core Commands
 
 | Command | Description |
 |---------|-------------|
@@ -39,6 +39,16 @@ Pre-built schemas are available in `.claude/skills/headless-adapters/schemas/` f
 | `balance <prompts>` | Analyze test set coverage |
 | `schemas [name]` | Export JSON schemas |
 | `headless --schema <path>` | Schema-driven adapter for any CLI agent |
+
+### Pipeline Commands (Unix-style)
+
+| Command | Description |
+|---------|-------------|
+| `run <prompts> --schema <path>` | Execute prompts, output raw results |
+| `extract <raw> --schema <path>` | Parse raw output into trajectories |
+| `grade <results> --grader <path>` | Apply grader to extracted results |
+| `format <results> --style <style>` | Convert to markdown, csv, or jsonl |
+| `compare <run1> <run2>... --grader <path>` | Compare multiple runs |
 
 ### Examples
 
@@ -58,6 +68,17 @@ bunx @plaited/agent-eval-harness summarize results.jsonl -o summary.jsonl
 
 # Export schemas
 bunx @plaited/agent-eval-harness schemas CaptureResult --json
+
+# Pipeline workflow (Unix-style composition)
+cat prompts.jsonl | \
+  bunx @plaited/agent-eval-harness run -s ./schemas/claude-headless.json | \
+  bunx @plaited/agent-eval-harness extract -s ./schemas/claude-headless.json | \
+  bunx @plaited/agent-eval-harness grade -g ./grader.ts | \
+  bunx @plaited/agent-eval-harness format -f markdown > report.md
+
+# Compare multiple runs
+bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl \
+  --grader ./compare-grader.ts -o comparison.jsonl
 ```
 
 ## Skills for AI Agents
@@ -76,7 +97,7 @@ Replace `<agent-name>` with your agent: `claude`, `cursor`, `copilot`, `opencode
 
 CLI tool for capturing agent trajectories, optimized for TypeScript/JavaScript projects using Bun.
 
-**Commands:**
+**Core Commands:**
 
 | Command | Description |
 |---------|-------------|
@@ -87,6 +108,16 @@ CLI tool for capturing agent trajectories, optimized for TypeScript/JavaScript p
 | `validate-refs` | Validate reference solutions against graders |
 | `balance` | Analyze test set coverage distribution |
 | `schemas` | Export Zod schemas as JSON Schema |
+
+**Pipeline Commands (Unix-style):**
+
+| Command | Description |
+|---------|-------------|
+| `run` | Execute prompts, output raw results |
+| `extract` | Parse raw output into trajectories |
+| `grade` | Apply grader to extracted results |
+| `format` | Convert to markdown, csv, or jsonl |
+| `compare` | Compare multiple runs |
 
 **Use cases:**
 - Capturing trajectories for downstream evaluation (Braintrust, custom scorers)

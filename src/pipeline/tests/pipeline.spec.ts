@@ -85,7 +85,7 @@ describe('ExtractedResult type', () => {
         {
           type: 'message',
           content: '4',
-          elapsed: 100,
+          timestamp: 100,
         },
       ],
       toolErrors: false,
@@ -102,15 +102,15 @@ describe('ExtractedResult type', () => {
       input: 'Create a file',
       output: 'Done',
       trajectory: [
-        { type: 'thought', content: 'I need to create a file', elapsed: 50 },
+        { type: 'thought', content: 'I need to create a file', timestamp: 50 },
         {
           type: 'tool_call',
           name: 'Write',
           input: { path: '/tmp/test.txt', content: 'hello' },
           status: 'completed',
-          elapsed: 200,
+          timestamp: 200,
         },
-        { type: 'message', content: 'Done', elapsed: 250 },
+        { type: 'message', content: 'Done', timestamp: 250 },
       ],
       toolErrors: false,
       timing: { start: 0, end: 300, total: 300 },
@@ -233,7 +233,7 @@ describe('pipeline data flow', () => {
       input: raw.input,
       hint: raw.hint,
       output: 'result',
-      trajectory: [{ type: 'message', content: 'result', elapsed: 100 }],
+      trajectory: [{ type: 'message', content: 'result', timestamp: 100 }],
       toolErrors: false,
       timing: raw.timing,
     }

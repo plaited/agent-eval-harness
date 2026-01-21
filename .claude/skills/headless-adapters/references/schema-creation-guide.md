@@ -241,7 +241,7 @@ cat raw-output.jsonl | jq '.'
 ```bash
 # Test initialize and session creation
 printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1}}\n{"jsonrpc":"2.0","id":2,"method":"session/new","params":{}}\n' | \
-  bun src/headless-cli.ts --schema ./my-schema.json 2>&1
+  bunx @plaited/agent-eval-harness headless --schema ./my-schema.json 2>&1
 ```
 
 **3. Common JSONPath issues:**

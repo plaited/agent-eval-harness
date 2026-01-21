@@ -57,12 +57,15 @@ This project provides two AI agent skills in `.claude/skills/`:
 
 CLI tool for capturing agent trajectories from headless CLI agents.
 
-**Commands:** `capture`, `trials`, `summarize`, `calibrate`, `validate-refs`, `balance`, `schemas`
+**Core Commands:** `capture`, `trials`, `summarize`, `calibrate`, `validate-refs`, `balance`, `schemas`
+
+**Pipeline Commands (Unix-style):** `run`, `extract`, `grade`, `format`, `compare`
 
 **Use cases:**
 - Capturing trajectories for downstream evaluation
 - Generating training data (SFT/DPO) with full context
 - Building regression test fixtures for agent behavior
+- Comparing agent responses across different configurations
 
 See `.claude/skills/agent-eval-harness/SKILL.md` for complete documentation.
 
