@@ -22,7 +22,6 @@ import type {
   Implementation,
   InitializeRequest,
   InitializeResponse,
-  McpServer,
   PromptRequest,
   PromptResponse,
   RequestPermissionRequest,
@@ -277,18 +276,22 @@ export const createACPClient = (config: ACPClientConfig) => {
   /**
    * Creates a new conversation session.
    *
-   * @param params - Session parameters with working directory and optional MCP servers
+   * @remarks
+   * MCP servers are auto-discovered by the agent from configuration files
+   * in the working directory (e.g., `.mcp.json`, `.gemini/settings.json`).
+   *
+   * @param params - Session parameters with working directory
    * @returns The created session
    * @throws {ACPClientError} If not connected
    */
-  const createSession = async (params: { cwd: string; mcpServers?: McpServer[] }): Promise<Session> => {
+  const createSession = async (params: { cwd: string }): Promise<Session> => {
     if (!transport?.isConnected()) {
       throw new ACPClientError('Not connected')
     }
 
     const response = await transport.request<{ sessionId: string }>(ACP_METHODS.CREATE_SESSION, {
       cwd: params.cwd,
-      mcpServers: params.mcpServers ?? [],
+      mcpServers: [], // Required field - empty array lets agents auto-discover from cwd
     })
     return { id: response.sessionId }
   }

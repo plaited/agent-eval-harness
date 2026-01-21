@@ -10,10 +10,10 @@ def main():
     data = json.load(sys.stdin)
 
     output = data.get("output", "").lower()
-    expected = (data.get("expected") or "").lower()
+    hint = (data.get("hint") or "").lower()
 
-    if expected:
-        pass_result = expected in output
+    if hint:
+        pass_result = hint in output
     else:
         pass_result = True
 

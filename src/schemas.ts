@@ -222,14 +222,16 @@ export type McpServerConfig = z.infer<typeof McpServerSchema>
  *
  * @remarks
  * Each line in a prompts.jsonl file should match this schema.
+ * - Single turn: `input: "Hello"` - one prompt, one session
+ * - Multi-turn: `input: ["Hello", "How are you?", "Goodbye"]` - sequential turns in one session
  */
 export const PromptCaseSchema = z.object({
   /** Unique identifier for the test case */
   id: z.string(),
-  /** The prompt text to send to the agent */
-  input: z.string(),
-  /** Optional expected output for grading */
-  expected: z.string().optional(),
+  /** Prompt text(s) - string for single turn, array for multi-turn conversation */
+  input: z.union([z.string(), z.array(z.string())]),
+  /** Optional grader context hint (not a strict expected match) */
+  hint: z.string().optional(),
   /** Optional reference solution for validation */
   reference: z.string().optional(),
   /** Optional metadata for categorization and analysis */
@@ -268,25 +270,13 @@ export type GraderResult = z.infer<typeof GraderResultSchema>
  *
  * @remarks
  * User-provided graders implement this interface to score agent outputs.
- *
- * @example
- * ```typescript
- * import type { Grader } from '@plaited/acp-harness/schemas'
- *
- * export const grade: Grader = async ({ input, output, expected, trajectory }) => {
- *   const pass = output.toLowerCase().includes(expected?.toLowerCase() ?? '')
- *   return {
- *     pass,
- *     score: pass ? 1 : 0,
- *     reasoning: pass ? 'Contains expected answer' : 'Missing expected answer'
- *   }
- * }
- * ```
+ * - `input` is the original prompt (string or array for multi-turn)
+ * - `hint` provides grader context (renamed from `expected`)
  */
 export type Grader = (params: {
-  input: string
+  input: string | string[]
   output: string
-  expected?: string
+  hint?: string
   trajectory?: TrajectoryStep[]
 }) => Promise<GraderResult>
 
@@ -306,6 +296,24 @@ export const ToolInputSchema = z
 
 /** Tool input type */
 export type ToolInput = z.infer<typeof ToolInputSchema>
+
+/**
+ * Token usage schema for adapter-specific usage data.
+ *
+ * @remarks
+ * ACP SDK's SessionNotification doesn't declare a 'usage' field, but adapters
+ * like Claude Code extend responses with token counts at runtime. This schema
+ * provides runtime validation for that extension.
+ */
+export const TokenUsageSchema = z
+  .object({
+    inputTokens: z.number().optional(),
+    outputTokens: z.number().optional(),
+  })
+  .passthrough()
+
+/** Token usage type */
+export type TokenUsage = z.infer<typeof TokenUsageSchema>
 
 /** Thought trajectory step */
 export const ThoughtStepSchema = z.object({
@@ -366,36 +374,80 @@ export type IndexedStep = TrajectoryStep & { stepId: string }
 // Capture Result Schemas
 // ============================================================================
 
-/** Timing information for a capture result */
+/**
+ * Timing information for a capture result.
+ *
+ * @remarks
+ * Captures both absolute timestamps and derived durations for analysis:
+ * - `sessionCreation`: Time to initialize session (agent startup overhead)
+ * - `total`: End-to-end duration including all turns
+ * - `firstResponse`: Latency to first agent output (optional)
+ *
+ * Token counts are adapter-dependent and only present if the adapter
+ * exposes usage information (e.g., Claude Code includes them, others may not).
+ *
+ * @public
+ */
 export const TimingSchema = z.object({
+  /** Epoch timestamp when capture started */
   start: z.number(),
+  /** Epoch timestamp when capture ended */
   end: z.number(),
+  /** Time to first response (ms from start) */
   firstResponse: z.number().optional(),
+  /** Time to create session (ms) - measures agent initialization overhead */
+  sessionCreation: z.number(),
+  /** Total duration (end - start) in milliseconds */
+  total: z.number(),
+  /** Input tokens consumed (if available from ACP adapter) */
+  inputTokens: z.number().optional(),
+  /** Output tokens generated (if available from ACP adapter) */
+  outputTokens: z.number().optional(),
 })
 
-/** Timing information type */
+/**
+ * Timing information type inferred from TimingSchema.
+ *
+ * @public
+ */
 export type Timing = z.infer<typeof TimingSchema>
+
+/**
+ * Trajectory richness level indicating the depth of captured agent activity.
+ *
+ * @remarks
+ * Different adapters provide varying levels of detail:
+ * - `full`: Thoughts, tool calls, plans (e.g., Claude Code adapter)
+ * - `minimal`: Basic output only (e.g., Droid adapter)
+ * - `messages-only`: Messages without internal reasoning
+ */
+export const TrajectoryRichnessSchema = z.enum(['full', 'minimal', 'messages-only'])
+
+/** Trajectory richness type */
+export type TrajectoryRichness = z.infer<typeof TrajectoryRichnessSchema>
 
 /**
  * Capture result schema.
  *
  * @remarks
  * Full trajectory output from the `capture` command.
- * The `toolErrors` field replaces the misleading `status: 'passed'|'failed'`.
+ * - `input` can be string (single turn) or string[] (multi-turn)
+ * - `hint` provides grader context (renamed from `expected`)
+ * - `toolErrors` replaces misleading `status: 'passed'|'failed'`
  * Real pass/fail determination comes from your grader.
  */
 export const CaptureResultSchema = z.object({
   /** Test case identifier */
   id: z.string(),
-  /** Original prompt input */
-  input: z.string(),
+  /** Original prompt input (string for single turn, array for multi-turn) */
+  input: z.union([z.string(), z.array(z.string())]),
   /** Final agent output */
   output: z.string(),
-  /** Expected output (if provided) */
-  expected: z.string().optional(),
+  /** Grader context hint (renamed from expected) */
+  hint: z.string().optional(),
   /** Full execution trajectory */
   trajectory: z.array(TrajectoryStepSchema),
-  /** Metadata including category, agent info, etc. */
+  /** Metadata including category, agent info, trajectoryRichness, turnCount */
   metadata: z.record(z.string(), z.unknown()),
   /** Timing information */
   timing: TimingSchema,
@@ -471,10 +523,10 @@ export type TrialEntry = z.infer<typeof TrialEntrySchema>
 export const TrialResultSchema = z.object({
   /** Test case identifier */
   id: z.string(),
-  /** Original prompt input */
-  input: z.string(),
-  /** Expected output (if provided) */
-  expected: z.string().optional(),
+  /** Original prompt input (string for single turn, array for multi-turn) */
+  input: z.union([z.string(), z.array(z.string())]),
+  /** Grader context hint (renamed from expected) */
+  hint: z.string().optional(),
   /** Number of trials (k) */
   k: z.number(),
   /** Simple pass rate: passes / k (with grader only) */
@@ -498,12 +550,12 @@ export type TrialResult = z.infer<typeof TrialResultSchema>
 export const CalibrationSampleSchema = z.object({
   /** Test case identifier */
   id: z.string(),
-  /** Original prompt input */
-  input: z.string(),
+  /** Original prompt input (string for single turn, array for multi-turn) */
+  input: z.union([z.string(), z.array(z.string())]),
   /** Agent output */
   output: z.string(),
-  /** Expected output (if provided) */
-  expected: z.string().optional(),
+  /** Grader context hint (renamed from expected) */
+  hint: z.string().optional(),
   /** Original grader score */
   originalScore: GraderResultSchema,
   /** Re-scored result (if different grader provided) */

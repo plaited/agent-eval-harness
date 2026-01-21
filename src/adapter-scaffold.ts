@@ -296,7 +296,6 @@ import { sessionManager } from '../session-manager.ts'
 
 type SessionNewParams = {
   cwd: string
-  mcpServers?: unknown[]
 }
 
 type SessionNewResult = {
@@ -304,12 +303,11 @@ type SessionNewResult = {
 }
 
 export const handleSessionNew = async (params: unknown): Promise<SessionNewResult> => {
-  const { cwd, mcpServers = [] } = params as SessionNewParams
+  const { cwd } = params as SessionNewParams
 
-  const sessionId = sessionManager.createSession({
-    cwd,
-    mcpServers,
-  })
+  // MCP servers are discovered from cwd configuration files
+  // (e.g., .mcp.json, .gemini/settings.json)
+  const sessionId = sessionManager.createSession({ cwd })
 
   return { sessionId }
 }
@@ -438,19 +436,17 @@ import { randomUUID } from 'node:crypto'
 type Session = {
   id: string
   cwd: string
-  mcpServers: unknown[]
   createdAt: Date
 }
 
 class SessionManager {
   #sessions = new Map<string, Session>()
 
-  createSession(params: { cwd: string; mcpServers: unknown[] }): string {
+  createSession(params: { cwd: string }): string {
     const id = \`sess_\${randomUUID().slice(0, 8)}\`
     this.#sessions.set(id, {
       id,
       cwd: params.cwd,
-      mcpServers: params.mcpServers,
       createdAt: new Date(),
     })
     return id
@@ -550,13 +546,15 @@ from typing import Any, Dict, Optional
 sessions: Dict[str, Dict[str, Any]] = {}
 
 
-def create_session(cwd: str, mcp_servers: list) -> str:
-    """Create a new session."""
+def create_session(cwd: str) -> str:
+    """Create a new session.
+
+    MCP servers are discovered from cwd configuration files.
+    """
     session_id = f"sess_{uuid.uuid4().hex[:8]}"
     sessions[session_id] = {
         "id": session_id,
         "cwd": cwd,
-        "mcp_servers": mcp_servers,
     }
     return session_id
 
@@ -597,10 +595,13 @@ def handle_initialize(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def handle_session_new(params: Dict[str, Any]) -> Dict[str, Any]:
-    """Handle session/new request."""
+    """Handle session/new request.
+
+    MCP servers are discovered from cwd configuration files
+    (e.g., .mcp.json, .gemini/settings.json).
+    """
     cwd = params.get("cwd", ".")
-    mcp_servers = params.get("mcpServers", [])
-    session_id = create_session(cwd, mcp_servers)
+    session_id = create_session(cwd)
     return {"sessionId": session_id}
 
 

@@ -19,7 +19,6 @@ import { extractOutput, extractTrajectory, loadPrompts } from './capture.ts'
 import { DEFAULT_HARNESS_TIMEOUT, DEFAULT_TRIAL_COUNT } from './constants.ts'
 import { loadGrader } from './grader-loader.ts'
 import type { Grader, TrialEntry, TrialResult } from './schemas.ts'
-import { McpServerSchema } from './schemas.ts'
 
 // ============================================================================
 // Pass@k/Pass^k Calculation
@@ -92,8 +91,6 @@ export type TrialsConfig = {
   progress?: boolean
   /** Append to output file */
   append?: boolean
-  /** MCP server configurations */
-  mcpServers?: unknown[]
   /** Optional grader function */
   grader?: Grader
 }
@@ -149,12 +146,8 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
     timeout = DEFAULT_HARNESS_TIMEOUT,
     progress = false,
     append = false,
-    mcpServers = [],
     grader,
   } = config
-
-  // Parse MCP server configurations
-  const parsedMcpServers = mcpServers.map((s) => McpServerSchema.parse(s))
 
   // Load prompts
   const prompts = await loadPrompts(promptsPath)
@@ -182,10 +175,9 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
     await Bun.write(resolvedOutputPath, '')
   }
 
-  // Session params
+  // Session params - agents auto-discover MCP configs from cwd
   const sessionParams = {
     cwd: cwd ?? process.cwd(),
-    mcpServers: parsedMcpServers,
   }
 
   const results: TrialResult[] = []
@@ -211,7 +203,8 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
         const startTime = Date.now()
 
         try {
-          const prompt = createPrompt(promptCase.input)
+          const inputText = Array.isArray(promptCase.input) ? promptCase.input.join('\n') : promptCase.input
+          const prompt = createPrompt(inputText)
           const { updates } = await client.promptSync(session.id, prompt)
 
           const endTime = Date.now()
@@ -230,7 +223,7 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
             const graderResult = await grader({
               input: promptCase.input,
               output,
-              expected: promptCase.expected,
+              hint: promptCase.hint,
               trajectory,
             })
             entry.pass = graderResult.pass
@@ -263,7 +256,7 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
       const result: TrialResult = {
         id: promptCase.id,
         input: promptCase.input,
-        ...(promptCase.expected && { expected: promptCase.expected }),
+        ...(promptCase.hint && { hint: promptCase.hint }),
         k,
         trials: trialEntries,
       }
@@ -318,7 +311,6 @@ export const trials = async (args: string[]): Promise<void> => {
       timeout: { type: 'string', short: 't', default: String(DEFAULT_HARNESS_TIMEOUT) },
       progress: { type: 'boolean', default: false },
       append: { type: 'boolean', default: false },
-      'mcp-server': { type: 'string', multiple: true },
       grader: { type: 'string', short: 'g' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -337,11 +329,10 @@ Arguments:
 Options:
   -o, --output      Output file (default: stdout)
   -k                Number of trials per prompt (default: ${DEFAULT_TRIAL_COUNT})
-  -c, --cwd         Working directory for agent
+  -c, --cwd         Working directory for agent (agents auto-discover MCP configs from here)
   -t, --timeout     Request timeout in ms (default: ${DEFAULT_HARNESS_TIMEOUT})
   --progress        Show progress to stderr
   --append          Append to output file
-  --mcp-server      MCP server config JSON (repeatable)
   -g, --grader      Path to grader (.ts/.js module or executable script)
   -h, --help        Show this help message
 
@@ -389,9 +380,6 @@ Examples:
     }
   }
 
-  // Parse MCP server configurations
-  const mcpServers = (values['mcp-server'] ?? []).map((json) => JSON.parse(json))
-
   await runTrials({
     promptsPath,
     agentCommand,
@@ -401,7 +389,6 @@ Examples:
     timeout: Number.parseInt(values.timeout ?? String(DEFAULT_HARNESS_TIMEOUT), 10),
     progress: values.progress ?? false,
     append: values.append ?? false,
-    mcpServers,
     grader,
   })
 }

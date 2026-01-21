@@ -18,8 +18,8 @@ bun run check:write
 # Run unit tests
 bun test
 
-# Run Docker integration tests (requires ANTHROPIC_API_KEY)
-ANTHROPIC_API_KEY=sk-... bun run test:docker
+# Run Docker integration tests (requires API keys)
+ANTHROPIC_API_KEY=sk-... GEMINI_API_KEY=... docker compose -f docker-compose.test.yml run --rm acp-test
 ```
 
 ## Quick Reference
@@ -28,15 +28,26 @@ ANTHROPIC_API_KEY=sk-... bun run test:docker
 
 `@plaited/acp-harness` is a CLI tool for capturing agent trajectories from ACP-compatible agents. It executes prompts, captures full trajectories (tools, thoughts, plans), and outputs structured JSONL for downstream scoring.
 
-**CLI usage:**
+**CLI usage (with built-in headless adapter):**
 ```bash
-bunx @plaited/acp-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
+# Set API key and run capture with headless adapter (recommended)
+export ANTHROPIC_API_KEY=sk-...
+bunx @plaited/acp-harness capture prompts.jsonl \
+  bunx @plaited/acp-harness headless --schema .claude/skills/acp-adapters/schemas/claude-headless.json \
+  -o results.jsonl
 ```
 
 ## Important Constraints
 
 1. **Bun Required**: Development requires bun >= v1.2.9
 2. **ES2024 Features**: Uses Promise.withResolvers() and other modern APIs
+
+## Key Features
+
+- **Multi-turn conversations**: `input: string | string[]` - execute prompts sequentially in same session
+- **Session isolation**: Fresh session per JSONL entry for reproducible captures
+- **MCP auto-discovery**: Agents discover MCP configs from working directory (no explicit `--mcp-server` flag)
+- **Headless adapter**: Schema-driven adapter wraps any CLI agent with JSON output - no code required
 
 ## Skills
 
@@ -59,10 +70,11 @@ See `.claude/skills/acp-harness/SKILL.md` for complete documentation.
 
 Discover, create, and validate ACP adapters for agent integration.
 
-**Commands:** `adapter:scaffold`, `adapter:check`
+**Commands:** `headless`, `adapter:scaffold`, `adapter:check`
 
 **Use cases:**
 - Finding existing adapters for your agent
+- Wrapping headless CLI agents with schema-driven adapter
 - Building custom ACP adapters from scratch
 - Validating adapter ACP compliance
 

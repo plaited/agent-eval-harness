@@ -4,8 +4,8 @@
 
 import type { Grader } from '../../schemas.ts'
 
-export const grade: Grader = async ({ input: _input, output, expected }) => {
-  const pass = expected ? output.toLowerCase().includes(expected.toLowerCase()) : true
+export const grade: Grader = async ({ input: _input, output, hint }) => {
+  const pass = hint ? output.toLowerCase().includes(hint.toLowerCase()) : true
   return {
     pass,
     score: pass ? 1.0 : 0.0,

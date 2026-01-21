@@ -15,7 +15,7 @@ const createBasicResult = (overrides?: Partial<CaptureResult>): CaptureResult =>
     { type: 'message', content: 'The answer is 4.', timestamp: 100 },
   ],
   metadata: { category: 'math', agent: 'test-agent' },
-  timing: { start: 1000, end: 2000 },
+  timing: { start: 1000, end: 2000, sessionCreation: 0, total: 1000 },
   toolErrors: false,
   ...overrides,
 })
@@ -46,7 +46,7 @@ const createResultWithToolCalls = (): CaptureResult => ({
     { type: 'message', content: 'File contains important data.', timestamp: 300 },
   ],
   metadata: { agent: 'test-agent' },
-  timing: { start: 1000, end: 1500 },
+  timing: { start: 1000, end: 1500, sessionCreation: 0, total: 500 },
   toolErrors: false,
 })
 
@@ -313,7 +313,7 @@ describe('formatMarkdown', () => {
         },
       ],
       metadata: { agent: 'test' },
-      timing: { start: 0, end: 100 },
+      timing: { start: 0, end: 100, sessionCreation: 0, total: 100 },
       toolErrors: false,
     }
     const markdown = formatMarkdown(result)

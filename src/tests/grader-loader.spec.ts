@@ -15,7 +15,7 @@ describe('loadGrader - module graders', () => {
     const result = await grader({
       input: 'What is 2+2?',
       output: 'The answer is 4',
-      expected: '4',
+      hint: '4',
     })
 
     expect(result.pass).toBe(true)
@@ -45,7 +45,7 @@ describe('loadGrader - executable graders', () => {
     const result = await grader({
       input: 'What is 2+2?',
       output: 'The answer is 4',
-      expected: '4',
+      hint: '4',
     })
 
     expect(result.pass).toBe(true)
@@ -59,7 +59,7 @@ describe('loadGrader - executable graders', () => {
     const result = await grader({
       input: 'What is 2+2?',
       output: 'I do not know',
-      expected: '4',
+      hint: '4',
     })
 
     expect(result.pass).toBe(false)
@@ -126,7 +126,7 @@ describe('loadGrader - trajectory support', () => {
     const result = await grader({
       input: 'test',
       output: 'The answer is 4',
-      expected: '4',
+      hint: '4',
       trajectory,
     })
 
@@ -144,7 +144,7 @@ describe('loadGrader - trajectory support', () => {
     const result = await grader({
       input: 'test',
       output: 'The answer is 4',
-      expected: '4',
+      hint: '4',
       trajectory,
     })
 

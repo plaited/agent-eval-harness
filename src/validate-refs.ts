@@ -69,7 +69,7 @@ export const runValidateRefs = async (config: ValidateRefsConfig): Promise<Valid
     const graderResult = await grader({
       input: prompt.input,
       output: prompt.reference as string,
-      expected: prompt.expected,
+      hint: prompt.hint,
       trajectory: [], // No trajectory for reference validation
     })
 

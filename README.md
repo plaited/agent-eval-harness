@@ -11,20 +11,24 @@ CLI tool for capturing agent trajectories from ACP-compatible agents. Execute pr
 Use these tools directly via the CLI without installation:
 
 ```bash
-# Run without installing
-bunx @plaited/acp-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
+# Using built-in headless adapter (recommended - no extra install needed)
+export ANTHROPIC_API_KEY=sk-...
+bunx @plaited/acp-harness capture prompts.jsonl \
+  bunx @plaited/acp-harness headless --schema ./schemas/claude-headless.json \
+  -o results.jsonl
 
-# Or install globally
-bun add -g @plaited/acp-harness
-acp-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
+# Or with an external ACP adapter
+bunx @plaited/acp-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
 ```
 
-**Prerequisite:** Install an ACP adapter and set your API key:
+**Prerequisite:** Set your API key. The `headless` command works with any CLI agent that supports JSON output - no adapter installation required:
 
 ```bash
-npm install -g @anthropic-ai/claude-code-acp
-export ANTHROPIC_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-...   # For Claude
+export GEMINI_API_KEY=...         # For Gemini
 ```
+
+Pre-built schemas are available in `.claude/skills/acp-adapters/schemas/` for Claude and Gemini.
 
 ### Commands
 
@@ -37,17 +41,21 @@ export ANTHROPIC_API_KEY=sk-...
 | `validate-refs <prompts>` | Check reference solutions |
 | `balance <prompts>` | Analyze test set coverage |
 | `schemas [name]` | Export JSON schemas |
-| `adapter:scaffold [name]` | Scaffold new ACP adapter project |
+| `headless --schema <path>` | Schema-driven adapter for any CLI agent |
 | `adapter:check <cmd>` | Validate adapter ACP compliance |
 
 ### Examples
 
 ```bash
-# Capture trajectories
-bunx @plaited/acp-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
+# Capture trajectories using headless adapter (recommended)
+bunx @plaited/acp-harness capture prompts.jsonl \
+  bunx @plaited/acp-harness headless --schema ./schemas/claude-headless.json \
+  -o results.jsonl
 
 # Run trials for pass@k analysis
-bunx @plaited/acp-harness trials prompts.jsonl bunx claude-code-acp -k 5 --grader ./grader.ts
+bunx @plaited/acp-harness trials prompts.jsonl \
+  bunx @plaited/acp-harness headless --schema ./schemas/claude-headless.json \
+  -k 5 --grader ./grader.ts
 
 # Summarize results
 bunx @plaited/acp-harness summarize results.jsonl -o summary.jsonl
@@ -55,11 +63,9 @@ bunx @plaited/acp-harness summarize results.jsonl -o summary.jsonl
 # Export schemas
 bunx @plaited/acp-harness schemas CaptureResult --json
 
-# Scaffold a new adapter
-bunx @plaited/acp-harness adapter:scaffold my-agent -o ./my-agent-acp
-
 # Validate adapter compliance
-bunx @plaited/acp-harness adapter:check bun ./my-adapter/src/main.ts
+bunx @plaited/acp-harness adapter:check \
+  bunx @plaited/acp-harness headless --schema ./schemas/claude-headless.json
 ```
 
 ## Skills for AI Agents
@@ -110,10 +116,12 @@ Discover, create, and validate ACP adapters for agent integration.
 
 | Command | Description |
 |---------|-------------|
+| `headless` | Schema-driven adapter for any CLI agent |
 | `adapter:scaffold` | Generate new adapter project with handlers |
 | `adapter:check` | Validate ACP protocol compliance |
 
 **Use cases:**
+- Wrapping headless CLI agents with schema-driven adapter
 - Finding existing adapters for your agent
 - Building custom ACP adapters from scratch
 - Validating adapter implementations
@@ -121,9 +129,17 @@ Discover, create, and validate ACP adapters for agent integration.
 ## Input Format
 
 ```jsonl
-{"id":"test-001","input":"Create a primary button","expected":"should contain <button>","metadata":{"category":"ui"}}
-{"id":"test-002","input":"Fix the TypeScript error","metadata":{"category":"bugfix"}}
+{"id":"test-001","input":"Create a primary button","hint":"should contain <button>","metadata":{"category":"ui"}}
+{"id":"test-002","input":["Create a component","Now add tests"],"metadata":{"category":"multi-turn"}}
 ```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Unique identifier |
+| `input` | Yes | Single prompt (string) or conversation turns (string[]) |
+| `hint` | No | Grader context - what to look for |
+| `reference` | No | Reference solution (for validate-refs) |
+| `metadata` | No | Tags, category, difficulty for filtering |
 
 ## Output Format
 
@@ -134,12 +150,12 @@ The harness outputs full trajectory JSONL (`CaptureResult` schema):
   "id": "test-001",
   "input": "Create a primary button",
   "output": "Here's a button component...",
-  "expected": "should contain <button>",
+  "hint": "should contain <button>",
   "trajectory": [...],
-  "metadata": {"category": "ui", "agent": "bunx claude-code-acp"},
-  "timing": {"start": 1234567890, "end": 1234567900},
+  "metadata": {"category": "ui", "agent": "bunx claude-code-acp", "trajectoryRichness": "full", "turnCount": 1},
+  "timing": {"start": 1234567890, "end": 1234567900, "sessionCreation": 234, "total": 10},
   "toolErrors": false,
-  "score": {"pass": true, "score": 1.0, "reasoning": "Contains expected"}
+  "score": {"pass": true, "score": 1.0, "reasoning": "Contains hint"}
 }
 ```
 
@@ -147,6 +163,9 @@ Key fields:
 - `toolErrors`: Boolean indicating if any tool calls failed
 - `score`: Grader result (only if `--grader` provided)
 - `trajectory`: Full execution trace (thoughts, messages, tool calls, plans)
+- `metadata.trajectoryRichness`: `"full"` | `"messages-only"` | `"minimal"`
+- `timing.sessionCreation`: Time to initialize session (ms)
+- `timing.total`: End-to-end duration (ms)
 
 ## Graders
 
@@ -159,12 +178,12 @@ Export a `grade` function:
 ```typescript
 import type { Grader } from '@plaited/acp-harness/schemas'
 
-export const grade: Grader = async ({ input, output, expected, trajectory }) => {
-  const pass = output.toLowerCase().includes(expected?.toLowerCase() ?? '')
+export const grade: Grader = async ({ input, output, hint, trajectory }) => {
+  const pass = output.toLowerCase().includes(hint?.toLowerCase() ?? '')
   return {
     pass,
     score: pass ? 1.0 : 0.0,
-    reasoning: pass ? 'Contains expected answer' : 'Missing expected answer'
+    reasoning: pass ? 'Contains hint content' : 'Missing hint content'
   }
 }
 ```
@@ -184,13 +203,13 @@ import sys
 
 data = json.load(sys.stdin)
 output = data["output"].lower()
-expected = (data.get("expected") or "").lower()
+hint = (data.get("hint") or "").lower()
 
-pass_result = expected in output if expected else True
+pass_result = hint in output if hint else True
 print(json.dumps({
     "pass": pass_result,
     "score": 1.0 if pass_result else 0.0,
-    "reasoning": "Contains expected" if pass_result else "Missing expected"
+    "reasoning": "Contains hint" if pass_result else "Missing hint"
 }))
 ```
 
@@ -200,7 +219,7 @@ acp-harness capture prompts.jsonl bunx claude-code-acp --grader ./grader.py
 ```
 
 **Protocol:**
-- Input (stdin): `{"input": "...", "output": "...", "expected": "...", "trajectory": [...]}`
+- Input (stdin): `{"input": "...", "output": "...", "hint": "...", "trajectory": [...]}`
 - Output (stdout): `{"pass": true, "score": 1.0, "reasoning": "..."}`
 
 ## Downstream Integration
@@ -222,13 +241,16 @@ cat results.jsonl | your-scoring-script.ts
 bun install          # Install dependencies
 bun run check        # Type check + lint + format
 bun test             # Run unit tests
+
+# Run integration tests in Docker (requires API keys)
+ANTHROPIC_API_KEY=sk-... docker compose -f docker-compose.test.yml run --rm acp-test
 ```
 
 ## Requirements
 
 - **Runtime:** Bun >= 1.2.9
-- **ACP Adapter:** `@anthropic-ai/claude-code-acp` or compatible
-- **API Key:** `ANTHROPIC_API_KEY` environment variable
+- **ACP Adapter:** Built-in `headless` command (recommended) or external adapter
+- **API Key:** `ANTHROPIC_API_KEY` for Claude, `GEMINI_API_KEY` for Gemini
 
 ## License
 

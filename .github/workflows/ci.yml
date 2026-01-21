@@ -41,23 +41,19 @@ jobs:
       - name: Run test
         run: bun run test
 
-  # ACP integration tests run in Docker container for consistent environment
-  # Only runs when src/ files change to reduce API costs
-  test-acp-integration:
+  # Required GitHub Secrets:
+  #   - ANTHROPIC_API_KEY: API key for Claude Code integration tests
+  #   - GEMINI_API_KEY: API key for Gemini CLI integration tests
+  test-integration:
     needs: changes
     if: ${{ needs.changes.outputs.acp == 'true' }}
     runs-on: ubuntu-latest
-    container:
-      image: oven/bun:1.2.9
-      options: --user root
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
       - name: Run ACP integration tests
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: bun test ./src/tests/acp-integration.docker.ts
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: docker compose -f docker-compose.test.yml run --rm acp-test

@@ -1,23 +1,42 @@
 # Dockerfile for integration tests requiring Docker environment
-# Uses same bun version as CI for consistency
 #
-# Tests use *.docker.ts naming to:
-# 1. Avoid bun test pattern matching in normal test runs
-# 2. Signal these tests require Docker (external APIs, etc.)
+# Integration tests require:
+# - External API keys (Anthropic, Gemini)
+# - Global CLI tools (claude, gemini)
 
 FROM oven/bun:1.2.9
 
-# Install git (required for some operations)
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+# Install git, curl, and Node.js 22 (required for Gemini CLI)
+RUN apt-get update && apt-get install -y git curl ca-certificates gnupg && \
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" > /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# Install Gemini CLI globally (accessible to all users)
+RUN npm install -g @google/gemini-cli
 
-# Copy source
-COPY . .
+# Create non-root user (Claude CLI blocks --dangerously-skip-permissions as root)
+RUN useradd -m -s /bin/bash testuser
+
+# Switch to testuser for Claude CLI installation
+USER testuser
+WORKDIR /home/testuser
+
+# Install Claude CLI as testuser (required for --dangerously-skip-permissions)
+RUN curl -fsSL https://claude.ai/install.sh | bash
+
+# Add Claude CLI to PATH
+ENV PATH="/home/testuser/.local/bin:$PATH"
+
+WORKDIR /home/testuser/app
+
+# Copy source (ownership set to testuser)
+COPY --chown=testuser:testuser . .
 
 # Install dependencies
 RUN bun install --frozen-lockfile
 
-# Run all Docker integration tests
-# The wrapper script handles finding and running *.docker.ts files
+# Run integration tests (wrapper handles Bun cleanup crash workaround)
 CMD ["bash", "scripts/bun-test-wrapper.sh"]

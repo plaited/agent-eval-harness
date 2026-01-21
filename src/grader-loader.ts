@@ -42,9 +42,9 @@ const resolvePath = (path: string): string => {
 
 /** Input format for executable graders (stdin JSON) */
 type ExecGraderInput = {
-  input: string
+  input: string | string[]
   output: string
-  expected?: string
+  hint?: string
   trajectory?: TrajectoryStep[]
 }
 
@@ -63,7 +63,7 @@ const createExecGrader = (execPath: string): Grader => {
     const input: ExecGraderInput = {
       input: params.input,
       output: params.output,
-      expected: params.expected,
+      hint: params.hint,
       trajectory: params.trajectory,
     }
 

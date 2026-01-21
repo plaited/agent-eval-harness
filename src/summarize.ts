@@ -64,9 +64,10 @@ const loadResults = async (path: string): Promise<CaptureResult[]> => {
  * @public
  */
 export const formatSummary = (result: CaptureResult): SummaryResult => {
+  const inputText = Array.isArray(result.input) ? result.input.join('\n') : result.input
   return {
     id: result.id,
-    input: result.input,
+    input: inputText,
     output: result.output,
     toolCalls: result.trajectory.filter((s) => s.type === 'tool_call').map((s) => (s as { name: string }).name),
     duration: result.timing.end - result.timing.start,
@@ -82,13 +83,8 @@ export const formatSummary = (result: CaptureResult): SummaryResult => {
  * @public
  */
 export const formatMarkdown = (result: CaptureResult): string => {
-  const lines: string[] = [
-    `## Evaluation Record: ${result.id}`,
-    '',
-    `**Input:** ${result.input}`,
-    '',
-    '**Trajectory:**',
-  ]
+  const inputText = Array.isArray(result.input) ? result.input.join('\n') : result.input
+  const lines: string[] = [`## Evaluation Record: ${result.id}`, '', `**Input:** ${inputText}`, '', '**Trajectory:**']
 
   let stepNum = 1
   for (const step of result.trajectory) {

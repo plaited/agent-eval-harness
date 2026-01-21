@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "agent-skills-spec": {
+      "httpUrl": "https://agentskills.io/mcp",
+      "trust": true
+    },
+    "bun-docs": {
+      "httpUrl": "https://bun.com/docs/mcp",
+      "trust": true
+    },
+    "agent-client-protocol": {
+      "httpUrl": "https://agentclientprotocol.com/mcp",
+      "trust": true
+    }
+  }
+}

@@ -174,12 +174,12 @@ Use the `--grader` flag to add scoring to capture results. The harness supports 
 // my-grader.ts
 import type { Grader } from '@plaited/acp-harness/schemas'
 
-export const grade: Grader = async ({ input, output, expected, trajectory }) => {
-  const pass = output.toLowerCase().includes(expected?.toLowerCase() ?? '')
+export const grade: Grader = async ({ input, output, hint, trajectory }) => {
+  const pass = output.toLowerCase().includes(hint?.toLowerCase() ?? '')
   return {
     pass,
     score: pass ? 1 : 0,
-    reasoning: pass ? 'Contains expected answer' : 'Missing expected answer'
+    reasoning: pass ? 'Contains hint content' : 'Missing hint content'
   }
 }
 ```
@@ -195,7 +195,7 @@ Python graders use stdin/stdout JSON protocol:
 ```python
 #!/usr/bin/env python3
 """
-Grader that checks if output contains expected answer.
+Grader that checks if output contains hint content.
 Make executable: chmod +x grader.py
 """
 import json
@@ -206,7 +206,7 @@ data = json.load(sys.stdin)
 
 # Extract fields
 output = data.get("output", "").lower()
-expected = (data.get("expected") or "").lower()
+hint = (data.get("hint") or "").lower()
 trajectory = data.get("trajectory", [])
 
 # Example: check tool usage in trajectory
@@ -216,13 +216,13 @@ used_write = any(
 )
 
 # Scoring logic
-pass_result = expected in output if expected else True
+pass_result = hint in output if hint else True
 
 # Write result to stdout
 print(json.dumps({
     "pass": pass_result,
     "score": 1.0 if pass_result else 0.0,
-    "reasoning": f"Contains expected: {pass_result}, Used Write tool: {used_write}"
+    "reasoning": f"Contains hint: {pass_result}, Used Write tool: {used_write}"
 }))
 ```
 
@@ -246,10 +246,10 @@ Test graders before using with the harness:
 
 ```bash
 # Test Python grader
-echo '{"input":"hello","output":"hello world","expected":"world"}' | ./grader.py
+echo '{"input":"hello","output":"hello world","hint":"world"}' | ./grader.py
 
 # Test shell grader
-echo '{"input":"test","output":"the answer is 42","expected":"42"}' | ./grader.sh
+echo '{"input":"test","output":"the answer is 42","hint":"42"}' | ./grader.sh
 ```
 
 ### Output Format
@@ -257,7 +257,7 @@ echo '{"input":"test","output":"the answer is 42","expected":"42"}' | ./grader.s
 Results will include a `score` field:
 
 ```jsonl
-{"id":"test-001",...,"score":{"pass":true,"score":1.0,"reasoning":"Contains expected answer"}}
+{"id":"test-001",...,"score":{"pass":true,"score":1.0,"reasoning":"Contains hint content"}}
 ```
 
 See [graders.md](graders.md) for complete documentation including shell scripts and LLM-as-judge patterns.
@@ -271,7 +271,7 @@ Feed full trajectory directly:
 ```typescript
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!)
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' })
 
 const results = parseResults(await Bun.file('results.jsonl').text())
@@ -336,7 +336,7 @@ for (const result of results) {
   logger.log({
     input: result.input,
     output: result.output,
-    expected: result.expected,
+    hint: result.hint,
     scores: {
       toolErrors: result.toolErrors ? 0 : 1,
       duration_ms: result.timing.end - result.timing.start,

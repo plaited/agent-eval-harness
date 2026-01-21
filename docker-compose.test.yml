@@ -1,12 +1,12 @@
 # Docker Compose for integration tests requiring Docker environment
 #
-# Tests use *.docker.ts naming to:
-# 1. Avoid bun test pattern matching in normal test runs
-# 2. Signal these tests require Docker (external APIs, etc.)
+# Integration tests live in integration_tests/ directories and require:
+# - External API keys (Anthropic, Gemini)
+# - Global CLI tools (claude, gemini)
 #
 # Usage:
-#   Local:  ANTHROPIC_API_KEY=sk-... bun run test:docker
-#   CI:     Uses ANTHROPIC_API_KEY from GitHub Actions secrets
+#   Local:  ANTHROPIC_API_KEY=sk-... bun run test:integration
+#   CI:     Uses secrets from GitHub Actions
 
 services:
   acp-test:
@@ -16,6 +16,7 @@ services:
     environment:
       # Passes through from host environment (works in CI and local)
       - ANTHROPIC_API_KEY
+      - GEMINI_API_KEY
     # Optional: mount src for live code debugging
     # volumes:
     #   - ./src:/app/src:ro

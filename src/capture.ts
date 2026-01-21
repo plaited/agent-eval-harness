@@ -18,8 +18,8 @@ import { createACPClient } from './acp-client.ts'
 import { createPrompt } from './acp-helpers.ts'
 import { DEFAULT_HARNESS_TIMEOUT, HEAD_LINES, TAIL_LINES } from './constants.ts'
 import { loadGrader } from './grader-loader.ts'
-import type { CaptureResult, Grader, PromptCase, TrajectoryStep } from './schemas.ts'
-import { McpServerSchema, PromptCaseSchema, ToolInputSchema } from './schemas.ts'
+import type { CaptureResult, Grader, PromptCase, TrajectoryRichness, TrajectoryStep } from './schemas.ts'
+import { PromptCaseSchema, TokenUsageSchema, ToolInputSchema } from './schemas.ts'
 
 // ============================================================================
 // Types
@@ -41,8 +41,6 @@ export type CaptureConfig = {
   progress?: boolean
   /** Append to output file instead of overwriting */
   append?: boolean
-  /** MCP server configurations */
-  mcpServers?: unknown[]
   /** Optional grader function */
   grader?: Grader
 }
@@ -192,12 +190,83 @@ const resolvePath = (path: string): string => {
   return `${process.cwd()}/${path}`
 }
 
+/**
+ * Detect trajectory richness level from captured steps.
+ *
+ * @remarks
+ * Different adapters provide varying levels of detail:
+ * - `full`: Has thoughts, tool calls, or plans (e.g., Claude Code)
+ * - `messages-only`: Only message steps present
+ * - `minimal`: Empty or unknown content
+ *
+ * Uses single-pass iteration with early exit for efficiency.
+ */
+export const detectTrajectoryRichness = (trajectory: TrajectoryStep[]): TrajectoryRichness => {
+  let hasMessages = false
+
+  for (const step of trajectory) {
+    // Early exit: any of these means 'full' richness
+    if (step.type === 'thought' || step.type === 'tool_call' || step.type === 'plan') {
+      return 'full'
+    }
+    if (step.type === 'message') {
+      hasMessages = true
+    }
+  }
+
+  return hasMessages ? 'messages-only' : 'minimal'
+}
+
+/**
+ * Extract token counts from session notifications if available.
+ *
+ * @remarks
+ * Token usage is adapter-dependent. If the adapter doesn't expose usage,
+ * these fields will be undefined. Uses Zod validation for runtime type safety.
+ */
+export const extractTokenCounts = (updates: SessionNotification[]): { inputTokens?: number; outputTokens?: number } => {
+  let inputTokens: number | undefined
+  let outputTokens: number | undefined
+
+  for (const update of updates) {
+    // Check for token usage in update (adapter-specific)
+    // ACP SDK doesn't declare 'usage' field, but adapters extend it at runtime
+    const updateRecord = update as Record<string, unknown>
+    const usageData = updateRecord.usage ?? (updateRecord.update as Record<string, unknown> | undefined)?.usage
+    const usage = TokenUsageSchema.safeParse(usageData)
+
+    if (usage.success) {
+      if (usage.data.inputTokens !== undefined) {
+        inputTokens = (inputTokens ?? 0) + usage.data.inputTokens
+      }
+      if (usage.data.outputTokens !== undefined) {
+        outputTokens = (outputTokens ?? 0) + usage.data.outputTokens
+      }
+    }
+  }
+
+  return { inputTokens, outputTokens }
+}
+
+/** Get preview text for input (handles string or array) */
+const getInputPreview = (input: string | string[]): string => {
+  if (Array.isArray(input)) {
+    const first = input[0] ?? ''
+    return `[${input.length} turns] ${first.slice(0, 40)}...`
+  }
+  return input.slice(0, 50)
+}
+
 // ============================================================================
 // Capture Implementation
 // ============================================================================
 
 /**
  * Execute capture with configuration object.
+ *
+ * @remarks
+ * Creates a fresh session for each JSONL entry to ensure isolation.
+ * Supports multi-turn conversations via `input: string[]`.
  *
  * @param config - Capture configuration
  * @returns Array of capture results
@@ -211,12 +280,8 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
     timeout = DEFAULT_HARNESS_TIMEOUT,
     progress = false,
     append = false,
-    mcpServers = [],
     grader,
   } = config
-
-  // Parse MCP server configurations
-  const parsedMcpServers = mcpServers.map((s) => McpServerSchema.parse(s))
 
   // Load prompts
   const prompts = await loadPrompts(promptsPath)
@@ -229,9 +294,6 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
   logProgress(`Command: ${agentCommand.join(' ')}`, progress)
   if (resolvedOutputPath) {
     logProgress(`Output: ${resolvedOutputPath}`, progress)
-  }
-  if (parsedMcpServers.length > 0) {
-    logProgress(`MCP Servers: ${parsedMcpServers.map((s) => s.name).join(', ')}`, progress)
   }
 
   // Create ACP client
@@ -246,10 +308,9 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
     await Bun.write(resolvedOutputPath, '')
   }
 
-  // Session params with MCP servers
+  // Session params - agents auto-discover MCP configs from cwd
   const sessionParams = {
     cwd: cwd ?? process.cwd(),
-    mcpServers: parsedMcpServers,
   }
 
   const results: CaptureResult[] = []
@@ -260,43 +321,64 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
     await client.connect()
     logProgress('Connected!', progress)
 
-    // Create session with MCP servers
-    const session = await client.createSession(sessionParams)
-    logProgress(`Session: ${session.id}`, progress)
-
-    // Run evaluations sequentially
+    // Run evaluations sequentially - fresh session per entry
     for (let i = 0; i < prompts.length; i++) {
       const promptCase = prompts[i]
       if (!promptCase) continue
 
-      logProgress(`[${i + 1}/${prompts.length}] ${promptCase.id}: ${promptCase.input.slice(0, 50)}...`, progress)
+      logProgress(`[${i + 1}/${prompts.length}] ${promptCase.id}: ${getInputPreview(promptCase.input)}...`, progress)
 
       const startTime = Date.now()
       let result: CaptureResult
 
       try {
-        const prompt = createPrompt(promptCase.input)
-        const { updates } = await client.promptSync(session.id, prompt)
+        // Create fresh session for each entry (ensures isolation)
+        const sessionStart = Date.now()
+        const session = await client.createSession(sessionParams)
+        const sessionCreation = Date.now() - sessionStart
+        logProgress(`  Session: ${session.id}`, progress)
+
+        // Handle string or array input
+        const inputs = Array.isArray(promptCase.input) ? promptCase.input : [promptCase.input]
+        const turnCount = inputs.length
+
+        // Collect all updates from all turns
+        const allUpdates: SessionNotification[] = []
+
+        // Execute each turn sequentially in the same session
+        for (const turnInput of inputs) {
+          const prompt = createPrompt(turnInput)
+          const { updates } = await client.promptSync(session.id, prompt)
+          allUpdates.push(...updates)
+        }
 
         const endTime = Date.now()
-        const trajectory = extractTrajectory(updates, startTime)
+        const trajectory = extractTrajectory(allUpdates, startTime)
         const output = extractOutput(trajectory)
         const toolErrors = hasToolErrors(trajectory)
+        const trajectoryRichness = detectTrajectoryRichness(trajectory)
+        const tokenCounts = extractTokenCounts(allUpdates)
 
         result = {
           id: promptCase.id,
-          input: promptCase.input,
+          input: promptCase.input, // Preserve original (string or array)
           output,
-          ...(promptCase.expected && { expected: promptCase.expected }),
+          ...(promptCase.hint && { hint: promptCase.hint }),
           trajectory,
           metadata: {
             ...promptCase.metadata,
             agent: agentCommand.join(' '),
+            trajectoryRichness,
+            turnCount,
           },
           timing: {
             start: startTime,
             end: endTime,
             firstResponse: trajectory.length > 0 ? trajectory[0]?.timestamp : undefined,
+            sessionCreation,
+            total: endTime - startTime,
+            ...(tokenCounts.inputTokens !== undefined && { inputTokens: tokenCounts.inputTokens }),
+            ...(tokenCounts.outputTokens !== undefined && { outputTokens: tokenCounts.outputTokens }),
           },
           toolErrors,
         }
@@ -306,13 +388,14 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
           result.score = await grader({
             input: promptCase.input,
             output,
-            expected: promptCase.expected,
+            hint: promptCase.hint,
             trajectory,
           })
         }
       } catch (error) {
         const endTime = Date.now()
         const message = error instanceof Error ? error.message : String(error)
+        const inputs = Array.isArray(promptCase.input) ? promptCase.input : [promptCase.input]
 
         result = {
           id: promptCase.id,
@@ -322,10 +405,14 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
           metadata: {
             ...promptCase.metadata,
             agent: agentCommand.join(' '),
+            trajectoryRichness: 'minimal' as TrajectoryRichness,
+            turnCount: inputs.length,
           },
           timing: {
             start: startTime,
             end: endTime,
+            sessionCreation: 0,
+            total: endTime - startTime,
           },
           toolErrors: true,
           errors: [message],
@@ -340,7 +427,7 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
       isFirstOutput = false
 
       const statusIcon = result.toolErrors ? '!' : '✓'
-      logProgress(`  ${statusIcon} (${result.timing.end - result.timing.start}ms)`, progress)
+      logProgress(`  ${statusIcon} (${result.timing.total}ms)`, progress)
     }
   } finally {
     logProgress('Disconnecting...', progress)
@@ -369,7 +456,6 @@ export const capture = async (args: string[]): Promise<void> => {
       timeout: { type: 'string', short: 't', default: String(DEFAULT_HARNESS_TIMEOUT) },
       progress: { type: 'boolean', default: false },
       append: { type: 'boolean', default: false },
-      'mcp-server': { type: 'string', multiple: true },
       grader: { type: 'string', short: 'g' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -387,11 +473,10 @@ Arguments:
 
 Options:
   -o, --output      Output file (default: stdout)
-  -c, --cwd         Working directory for agent
+  -c, --cwd         Working directory for agent (agents auto-discover MCP configs from here)
   -t, --timeout     Request timeout in ms (default: ${DEFAULT_HARNESS_TIMEOUT})
   --progress        Show progress to stderr
   --append          Append to output file instead of overwriting
-  --mcp-server      MCP server config JSON (repeatable)
   -g, --grader      Path to grader (.ts/.js module or executable script)
   -h, --help        Show this help message
 
@@ -440,9 +525,6 @@ Examples:
     }
   }
 
-  // Parse MCP server configurations
-  const mcpServers = (values['mcp-server'] ?? []).map((json) => JSON.parse(json))
-
   await runCapture({
     promptsPath,
     agentCommand,
@@ -451,7 +533,6 @@ Examples:
     timeout: Number.parseInt(values.timeout ?? String(DEFAULT_HARNESS_TIMEOUT), 10),
     progress: values.progress ?? false,
     append: values.append ?? false,
-    mcpServers,
     grader,
   })
 }

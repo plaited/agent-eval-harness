@@ -28,10 +28,8 @@
     "./bin/**",
     "!./src/**/tests/*",
     "!./src/**/*.spec.ts",
-    "!./src/**/*.docker.ts",
     "!./bin/**/tests/*",
-    "!./bin/**/*.spec.ts",
-    "!./bin/**/*.docker.ts"
+    "!./bin/**/*.spec.ts"
   ],
   "publishConfig": {
     "access": "public"
@@ -43,8 +41,8 @@
     "check:types": "tsc --noEmit",
     "check:write": "biome check --write && format-package --write",
     "prepare": "git rev-parse --git-dir > /dev/null 2>&1 && git config core.hooksPath .hooks || true",
-    "test": "bun test ./src/ ./bin/ ./.claude",
-    "test:docker": "docker compose -f docker-compose.test.yml run --rm acp-test"
+    "test": "bun test ./**/tests/*.spec.ts",
+    "test:integration": "bun test ./**/integration_tests/*.spec.ts"
   },
   "lint-staged": {
     "*.{js,cjs,jsx,tsx,ts}": [
