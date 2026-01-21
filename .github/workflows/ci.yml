@@ -41,6 +41,9 @@ jobs:
       - name: Run test
         run: bun run test
 
+  # Required GitHub Secrets:
+  #   - ANTHROPIC_API_KEY: API key for Claude Code integration tests
+  #   - GEMINI_API_KEY: API key for Gemini CLI integration tests
   test-integration:
     needs: changes
     if: ${{ needs.changes.outputs.acp == 'true' }}
