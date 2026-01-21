@@ -208,11 +208,16 @@ Use these docs when creating schemas for popular agents:
 
 | Agent | CLI Documentation |
 |-------|-------------------|
-| Droid | [docs.factory.ai/cli](https://docs.factory.ai/cli/getting-started/overview) |
-| Amp | [amp.dev/cli](https://amp.dev/documentation/guides/cli) |
-| Cursor | [cursor.com/docs/cli](https://www.cursor.com/docs/cli) |
-| Copilot | [docs.github.com/copilot/cli](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line) |
-| Codex | [openai.github.io/codex-cli](https://openai.github.io/codex-cli/) |
+| Cursor | [cursor.com/docs/cli/overview](https://cursor.com/docs/cli/overview) |
+| Amp | [ampcode.com/manual#cli](https://ampcode.com/manual#cli) |
+| Copilot | [docs.github.com/.../about-copilot-cli](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli) |
+| Droid | [docs.factory.ai/cli/droid-exec/overview](https://docs.factory.ai/cli/droid-exec/overview) |
+| Letta | [docs.letta.com/letta-code/cli-reference](https://docs.letta.com/letta-code/cli-reference/) |
+| Goose | [block.github.io/goose/.../headless-goose](https://block.github.io/goose/docs/tutorials/headless-goose/) |
+| OpenCode | [opencode.ai/docs/cli](https://opencode.ai/docs/cli/) |
+| Codex | [developers.openai.com/codex/cli](https://developers.openai.com/codex/cli/) |
+
+> **Note:** For detailed ACP protocol questions during schema creation, use the `agent-client-protocol-docs` MCP server. See SKILL.md for configuration.
 
 ## Troubleshooting
 
