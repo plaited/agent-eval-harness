@@ -86,14 +86,18 @@ export type OutputEventMapping = z.infer<typeof OutputEventMappingSchema>
  * 2. **Positional**: `flag: ""` - Pass prompt as positional argument
  * 3. **Stdin**: `stdin: true` - Write prompt to stdin (command should include `-` or equivalent)
  */
-export const PromptConfigSchema = z.object({
-  /** Flag to pass prompt (e.g., "-p", "--prompt"). Empty string for positional. */
-  flag: z.string().optional(),
-  /** Use stdin to pass prompt instead of command args */
-  stdin: z.boolean().optional(),
-  /** Format for stdin input in stream mode */
-  stdinFormat: z.enum(['text', 'json']).optional(),
-})
+export const PromptConfigSchema = z
+  .object({
+    /** Flag to pass prompt (e.g., "-p", "--prompt"). Empty string for positional. */
+    flag: z.string().optional(),
+    /** Use stdin to pass prompt instead of command args */
+    stdin: z.boolean().optional(),
+    /** Format for stdin input in stream mode */
+    stdinFormat: z.enum(['text', 'json']).optional(),
+  })
+  .refine((data) => !(data.flag && data.stdin), {
+    message: "Cannot specify both 'flag' and 'stdin' modes - use either flag-based or stdin mode, not both",
+  })
 
 /** Prompt configuration type */
 export type PromptConfig = z.infer<typeof PromptConfigSchema>

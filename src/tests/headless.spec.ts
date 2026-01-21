@@ -196,6 +196,22 @@ describe('HeadlessAdapterSchema', () => {
       expect(result.success).toBe(false)
     })
 
+    test('rejects both flag and stdin specified', () => {
+      const invalid = {
+        ...validClaudeSchema,
+        prompt: {
+          flag: '-p',
+          stdin: true,
+        },
+      }
+      const result = HeadlessAdapterSchema.safeParse(invalid)
+      expect(result.success).toBe(false)
+      // Type assertion after checking success is false
+      const error = (result as { success: false; error: { issues: Array<{ message: string }> } }).error
+      expect(error.issues.length).toBeGreaterThan(0)
+      expect(error.issues[0]!.message).toContain("Cannot specify both 'flag' and 'stdin' modes")
+    })
+
     test('rejects invalid emitAs type', () => {
       const invalid = {
         ...validClaudeSchema,

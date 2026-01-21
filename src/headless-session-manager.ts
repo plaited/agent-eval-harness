@@ -165,9 +165,8 @@ export const createSessionManager = (config: SessionManagerConfig) => {
       })
 
       // If using stdin, write the prompt
-      if (schema.prompt.stdin && session.process.stdin && typeof session.process.stdin !== 'number') {
-        session.process.stdin.write(`${promptText}\n`)
-        session.process.stdin.flush()
+      if (schema.prompt.stdin && session.process) {
+        writePromptToStdin(session.process, promptText)
       }
     } else {
       // Subsequent turns: spawn new process with resume flag
@@ -182,9 +181,8 @@ export const createSessionManager = (config: SessionManagerConfig) => {
       })
 
       // If using stdin, write the prompt
-      if (schema.prompt.stdin && session.process.stdin && typeof session.process.stdin !== 'number') {
-        session.process.stdin.write(`${promptText}\n`)
-        session.process.stdin.flush()
+      if (schema.prompt.stdin && session.process) {
+        writePromptToStdin(session.process, promptText)
       }
     }
 
@@ -214,9 +212,8 @@ export const createSessionManager = (config: SessionManagerConfig) => {
     })
 
     // If using stdin, write the prompt
-    if (schema.prompt.stdin && session.process.stdin && typeof session.process.stdin !== 'number') {
-      session.process.stdin.write(`${fullPrompt}\n`)
-      session.process.stdin.flush()
+    if (schema.prompt.stdin && session.process) {
+      writePromptToStdin(session.process, fullPrompt)
     }
 
     const result = await collectOutput(session, outputParser, onUpdate, timeout)
@@ -321,6 +318,32 @@ export const createSessionManager = (config: SessionManagerConfig) => {
  */
 const generateSessionId = (): string => {
   return `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+/**
+ * Writes a prompt to a process stdin stream.
+ *
+ * @remarks
+ * Uses Bun's FileSink API to write text to the process stdin.
+ * The FileSink type provides `write()` and `flush()` methods for
+ * efficient stream writing without async overhead.
+ *
+ * Type guard ensures stdin is a FileSink (not a file descriptor number)
+ * before attempting to write. This handles Bun's subprocess stdin types:
+ * - `'pipe'` → FileSink with write/flush methods
+ * - `'ignore'` → null (not writable)
+ * - number → file descriptor (not a FileSink)
+ *
+ * @param process - Subprocess with stdin stream
+ * @param prompt - Prompt text to write
+ *
+ * @internal
+ */
+const writePromptToStdin = (process: Subprocess, prompt: string): void => {
+  if (process.stdin && typeof process.stdin !== 'number') {
+    process.stdin.write(`${prompt}\n`)
+    process.stdin.flush()
+  }
 }
 
 /**
