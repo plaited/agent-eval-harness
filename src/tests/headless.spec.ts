@@ -179,7 +179,7 @@ describe('HeadlessAdapterSchema', () => {
     })
 
     test('rejects unsupported version', () => {
-      const invalid = { ...validClaudeSchema, version: 3 }
+      const invalid = { ...validClaudeSchema, version: 2 }
       const result = HeadlessAdapterSchema.safeParse(invalid)
       expect(result.success).toBe(false)
     })
@@ -236,7 +236,7 @@ describe('HeadlessAdapterSchema', () => {
     })
 
     test('throws for invalid input', () => {
-      expect(() => parseHeadlessConfig({ version: 2 })).toThrow()
+      expect(() => parseHeadlessConfig({ version: 99 })).toThrow()
     })
   })
 
@@ -250,7 +250,7 @@ describe('HeadlessAdapterSchema', () => {
     })
 
     test('returns failure for invalid input', () => {
-      const result = safeParseHeadlessConfig({ version: 2 })
+      const result = safeParseHeadlessConfig({ version: 99 })
       expect(result.success).toBe(false)
     })
   })

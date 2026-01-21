@@ -10,9 +10,9 @@
 
 import { parseArgs } from 'node:util'
 import { DEFAULT_CALIBRATION_SAMPLE_SIZE } from './constants.ts'
+import { loadResults, resolvePath } from './core.ts'
 import { loadGrader } from './grader-loader.ts'
-import type { CalibrationSample, CaptureResult, Grader, GraderResult, TrajectoryStep } from './schemas.ts'
-import { CaptureResultSchema } from './schemas.ts'
+import type { CalibrationSample, Grader, GraderResult, TrajectoryStep } from './schemas.ts'
 
 // ============================================================================
 // Types
@@ -28,32 +28,6 @@ export type CalibrateConfig = {
   sample?: number
   /** Optional grader for re-scoring */
   grader?: Grader
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/** Resolve path relative to process.cwd() */
-const resolvePath = (path: string): string => {
-  if (path.startsWith('/')) return path
-  return `${process.cwd()}/${path}`
-}
-
-/** Load capture results from JSONL file */
-const loadResults = async (path: string): Promise<CaptureResult[]> => {
-  const content = await Bun.file(path).text()
-  return content
-    .trim()
-    .split('\n')
-    .filter(Boolean)
-    .map((line, index) => {
-      try {
-        return CaptureResultSchema.parse(JSON.parse(line))
-      } catch (error) {
-        throw new Error(`Invalid result at line ${index + 1}: ${error instanceof Error ? error.message : error}`)
-      }
-    })
 }
 
 /**

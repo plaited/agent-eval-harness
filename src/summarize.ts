@@ -10,10 +10,9 @@
  */
 
 import { parseArgs } from 'node:util'
-import { extractContent, extractFilePath, headTailPreview } from './capture.ts'
 import { HEAD_LINES, MAX_CONTENT_LENGTH, TAIL_LINES } from './constants.ts'
+import { extractContent, extractFilePath, headTailPreview, loadResults, resolvePath } from './core.ts'
 import type { CaptureResult, SummaryResult } from './schemas.ts'
-import { CaptureResultSchema } from './schemas.ts'
 
 // ============================================================================
 // Types
@@ -27,32 +26,6 @@ export type SummarizeConfig = {
   outputPath?: string
   /** Output as markdown instead of JSONL */
   markdown?: boolean
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/** Resolve path relative to process.cwd() */
-const resolvePath = (path: string): string => {
-  if (path.startsWith('/')) return path
-  return `${process.cwd()}/${path}`
-}
-
-/** Load capture results from JSONL file */
-const loadResults = async (path: string): Promise<CaptureResult[]> => {
-  const content = await Bun.file(path).text()
-  return content
-    .trim()
-    .split('\n')
-    .filter(Boolean)
-    .map((line, index) => {
-      try {
-        return CaptureResultSchema.parse(JSON.parse(line))
-      } catch (error) {
-        throw new Error(`Invalid result at line ${index + 1}: ${error instanceof Error ? error.message : error}`)
-      }
-    })
 }
 
 /**

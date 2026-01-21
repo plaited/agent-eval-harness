@@ -56,6 +56,8 @@ flowchart LR
 
 ## Commands
 
+### Core Commands
+
 | Command | Input | Output | Purpose |
 |---------|-------|--------|---------|
 | `capture` | prompts.jsonl + schema | results.jsonl | Trajectory capture (full) |
@@ -65,6 +67,16 @@ flowchart LR
 | `validate-refs` | prompts.jsonl | validation.jsonl | Check reference solutions |
 | `balance` | prompts.jsonl | balance.json | Analyze test set coverage |
 | `schemas` | (none) | JSON Schema | Export schemas for non-TS users |
+
+### Pipeline Commands (Unix-style)
+
+| Command | Input | Output | Purpose |
+|---------|-------|--------|---------|
+| `run` | prompts.jsonl + schema | raw.jsonl | Execute prompts, raw output |
+| `extract` | raw.jsonl + schema | extracted.jsonl | Parse trajectories |
+| `grade` | extracted.jsonl + grader | graded.jsonl | Apply grader scoring |
+| `format` | results.jsonl | jsonl/markdown/csv | Convert output format |
+| `compare` | multiple results.jsonl | comparison.jsonl | Compare multiple runs |
 
 All commands support optional `--grader ./grader.ts` for scoring.
 
@@ -235,6 +247,134 @@ Include both positive and negative cases:
 | Edge case | "Handle empty input gracefully" | Agent should be robust |
 
 See [eval-concepts.md](references/eval-concepts.md#test-set-balance) for more on balanced test sets.
+
+## Pipeline Workflow
+
+The pipeline commands enable Unix-style composition for flexible evaluation workflows.
+
+### Full Pipeline Example
+
+```bash
+# Execute → Extract → Grade → Format in one pipeline
+cat prompts.jsonl | \
+  bunx @plaited/agent-eval-harness run -s claude.json | \
+  bunx @plaited/agent-eval-harness extract -s claude.json | \
+  bunx @plaited/agent-eval-harness grade -g ./grader.ts | \
+  bunx @plaited/agent-eval-harness format -f markdown > report.md
+```
+
+### Run Command
+
+Execute prompts and output raw results. Three modes available:
+
+```bash
+# Schema mode (recommended)
+bunx @plaited/agent-eval-harness run prompts.jsonl --schema claude.json
+
+# Simple mode: {} placeholder substitution
+bunx @plaited/agent-eval-harness run prompts.jsonl --simple "claude -p {} --output-format stream-json"
+
+# Shell mode: $PROMPT environment variable
+bunx @plaited/agent-eval-harness run prompts.jsonl --shell 'claude -p "$PROMPT" --output-format stream-json'
+```
+
+### Extract Command
+
+Parse raw output into structured trajectories:
+
+```bash
+# From file
+bunx @plaited/agent-eval-harness extract raw.jsonl --schema claude.json -o extracted.jsonl
+
+# Piped from run
+bunx @plaited/agent-eval-harness run prompts.jsonl -s claude.json | \
+  bunx @plaited/agent-eval-harness extract -s claude.json
+```
+
+### Grade Command
+
+Apply grader to extracted results:
+
+```bash
+bunx @plaited/agent-eval-harness grade extracted.jsonl --grader ./grader.ts -o graded.jsonl
+```
+
+### Format Command
+
+Convert results to different output formats:
+
+```bash
+# Markdown report
+bunx @plaited/agent-eval-harness format results.jsonl --style markdown -o report.md
+
+# CSV for spreadsheets
+bunx @plaited/agent-eval-harness format results.jsonl --style csv -o results.csv
+
+# JSONL (pass-through, default)
+bunx @plaited/agent-eval-harness format results.jsonl --style jsonl
+```
+
+### Compare Command
+
+Compare multiple runs of the same prompts:
+
+```bash
+# Compare multiple result files
+bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl run3.jsonl \
+  --grader ./compare-grader.ts -o comparison.jsonl
+
+# With explicit labels
+bunx @plaited/agent-eval-harness compare \
+  --run "with-mcp:results-mcp.jsonl" \
+  --run "vanilla:results-vanilla.jsonl" \
+  --grader ./compare-grader.ts
+```
+
+**Use cases for compare:**
+- Same agent, different MCP servers
+- Same agent, different skills enabled
+- Same agent, different model versions
+- Different agents entirely
+
+### Comparison Grader Interface
+
+```typescript
+import type { ComparisonGrader } from '@plaited/agent-eval-harness/pipeline'
+
+export const grade: ComparisonGrader = async ({ id, input, hint, runs }) => {
+  // runs is Record<string, { output: string; trajectory?: TrajectoryStep[] }>
+  // Return rankings from best to worst
+  return {
+    rankings: [
+      { run: 'with-mcp', rank: 1, score: 0.9 },
+      { run: 'vanilla', rank: 2, score: 0.7 },
+    ],
+    reasoning: 'MCP run produced more accurate output'
+  }
+}
+```
+
+### Pipeline Workflow Diagram
+
+```mermaid
+flowchart LR
+    Prompts["prompts.jsonl"] --> Run["run"]
+    Schema["headless schema"] --> Run
+    Run --> Raw["raw.jsonl"]
+    Raw --> Extract["extract"]
+    Schema --> Extract
+    Extract --> Extracted["extracted.jsonl"]
+    Extracted --> Grade["grade"]
+    Grader["grader.ts"] --> Grade
+    Grade --> Graded["graded.jsonl"]
+    Graded --> Format["format"]
+    Format --> Output["report.md / .csv / .jsonl"]
+
+    Graded --> Compare["compare"]
+    Results2["other runs..."] --> Compare
+    CompareGrader["compare-grader.ts"] --> Compare
+    Compare --> Comparison["comparison.jsonl"]
+```
 
 ## Schemas Command
 

@@ -8,7 +8,7 @@
  * @packageDocumentation
  */
 
-import type { HeadlessAdapterConfig, OutputEventMapping } from './headless.schemas.ts'
+import type { HeadlessAdapterConfig, OutputEventMapping, PassthroughTypeMap } from './headless.schemas.ts'
 
 // ============================================================================
 // Types
@@ -160,6 +160,61 @@ export const jsonPathString = (obj: unknown, path: string): string | undefined =
 // ============================================================================
 
 /**
+ * Parse line using passthrough mode.
+ *
+ * @remarks
+ * Passthrough mode directly maps the agent's type field to session update types.
+ * Simpler than JSONPath for agents with well-structured output.
+ *
+ * @param line - JSON string from CLI stdout
+ * @param typeMap - Passthrough type mapping configuration
+ * @returns Parsed update or null if no mapping matches
+ */
+const parsePassthrough = (line: string, typeMap: PassthroughTypeMap): ParsedUpdate | null => {
+  let event: Record<string, unknown>
+  try {
+    event = JSON.parse(line) as Record<string, unknown>
+  } catch {
+    return null
+  }
+
+  const typeField = typeMap.typeField ?? 'type'
+  const eventType = event[typeField]
+
+  if (typeof eventType !== 'string') {
+    return null
+  }
+
+  // Check if this type has a mapping
+  const typeValues = typeMap.typeValues as Record<string, SessionUpdateType> | undefined
+  const mappedType = typeValues?.[eventType]
+  if (!mappedType) {
+    // No explicit mapping - try direct match if it's a valid session type
+    const validTypes = ['thought', 'tool_call', 'message', 'plan'] as const
+    if (!validTypes.includes(eventType as (typeof validTypes)[number])) {
+      return null
+    }
+    // Use the event type directly if it's already a valid session type
+    return {
+      type: eventType as SessionUpdateType,
+      content: typeof event.content === 'string' ? event.content : undefined,
+      title: typeof event.name === 'string' ? event.name : typeof event.title === 'string' ? event.title : undefined,
+      status: typeof event.status === 'string' ? event.status : undefined,
+      raw: event,
+    }
+  }
+
+  // Use mapped type
+  return {
+    type: mappedType,
+    content: typeof event.content === 'string' ? event.content : undefined,
+    title: typeof event.name === 'string' ? event.name : typeof event.title === 'string' ? event.title : undefined,
+    status: typeof event.status === 'string' ? event.status : undefined,
+    raw: event,
+  }
+}
+
+/**
  * Creates an output parser from adapter configuration.
  *
  * @remarks
@@ -168,11 +223,15 @@ export const jsonPathString = (obj: unknown, path: string): string | undefined =
  * 2. Extract content using JSONPath expressions
  * 3. Emit session update objects
  *
+ * Supports two modes:
+ * - 'jsonpath' (default): Uses outputEvents for complex pattern matching
+ * - 'passthrough': Direct type mapping for well-structured output
+ *
  * @param config - Headless adapter configuration
  * @returns Parser function for individual lines
  */
 export const createOutputParser = (config: HeadlessAdapterConfig) => {
-  const { outputEvents, result } = config
+  const { result, outputMode = 'jsonpath', outputEvents = [], passthroughTypeMap } = config
 
   /**
    * Parses a single JSON line from CLI output.
@@ -181,6 +240,16 @@ export const createOutputParser = (config: HeadlessAdapterConfig) => {
    * @returns Parsed update, array of updates (for wildcard matches), or null if no mapping matches
    */
   const parseLine = (line: string): ParsedUpdate | ParsedUpdate[] | null => {
+    // Use passthrough mode if configured
+    if (outputMode === 'passthrough' && passthroughTypeMap) {
+      return parsePassthrough(line, passthroughTypeMap)
+    }
+
+    // JSONPath mode (default)
+    if (!outputEvents || outputEvents.length === 0) {
+      return null
+    }
+
     let event: unknown
     try {
       event = JSON.parse(line)

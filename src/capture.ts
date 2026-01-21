@@ -11,15 +11,40 @@
  * @packageDocumentation
  */
 
-import { appendFile } from 'node:fs/promises'
 import { parseArgs } from 'node:util'
-import { DEFAULT_HARNESS_TIMEOUT, HEAD_LINES, TAIL_LINES } from './constants.ts'
+import { DEFAULT_HARNESS_TIMEOUT } from './constants.ts'
+import {
+  detectTrajectoryRichness,
+  extractOutput,
+  extractTrajectory,
+  getInputPreview,
+  hasToolErrors,
+  loadPrompts,
+  logProgress,
+  resolvePath,
+  writeOutput,
+} from './core.ts'
 import { loadGrader } from './grader-loader.ts'
 import { type HeadlessAdapterConfig, parseHeadlessConfig } from './headless.schemas.ts'
 import type { ParsedUpdate } from './headless-output-parser.ts'
 import { createSessionManager, type ProcessExitInfo, type PromptResult } from './headless-session-manager.ts'
-import type { CaptureResult, Grader, PromptCase, TrajectoryRichness, TrajectoryStep } from './schemas.ts'
-import { PromptCaseSchema, ToolInputSchema } from './schemas.ts'
+import type { CaptureResult, Grader, TrajectoryRichness } from './schemas.ts'
+
+// ============================================================================
+// Re-exports for backward compatibility
+// ============================================================================
+
+// These functions are now in core/ but re-exported here for existing consumers
+export {
+  detectTrajectoryRichness,
+  extractContent,
+  extractFilePath,
+  extractOutput,
+  extractTrajectory,
+  hasToolErrors,
+  headTailPreview,
+  loadPrompts,
+} from './core.ts'
 
 // ============================================================================
 // Types
@@ -45,179 +70,6 @@ export type CaptureConfig = {
   grader?: Grader
   /** Enable debug mode for detailed output */
   debug?: boolean
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/** Load prompts from JSONL file */
-export const loadPrompts = async (path: string): Promise<PromptCase[]> => {
-  const content = await Bun.file(path).text()
-  return content
-    .trim()
-    .split('\n')
-    .filter(Boolean)
-    .map((line, index) => {
-      try {
-        return PromptCaseSchema.parse(JSON.parse(line))
-      } catch (error) {
-        throw new Error(`Invalid prompt at line ${index + 1}: ${error instanceof Error ? error.message : error}`)
-      }
-    })
-}
-
-/** Extract trajectory from parsed updates */
-export const extractTrajectory = (updates: ParsedUpdate[], startTime: number): TrajectoryStep[] => {
-  const trajectory: TrajectoryStep[] = []
-  const toolCallMap = new Map<string, { start: number; step: TrajectoryStep & { type: 'tool_call' } }>()
-
-  for (const update of updates) {
-    const timestamp = Date.now() - startTime
-
-    if (update.type === 'thought') {
-      trajectory.push({
-        type: 'thought',
-        content: update.content ?? '',
-        timestamp,
-      })
-    } else if (update.type === 'message') {
-      trajectory.push({
-        type: 'message',
-        content: update.content ?? '',
-        timestamp,
-      })
-    } else if (update.type === 'tool_call') {
-      const toolCallId = update.title ?? `tool_${Date.now()}`
-      const existing = toolCallMap.get(toolCallId)
-
-      if (existing && update.status === 'completed') {
-        // Update existing tool call with completion info
-        existing.step.status = update.status
-        existing.step.duration = timestamp - existing.start
-      } else if (!existing) {
-        // New tool call
-        const step: TrajectoryStep & { type: 'tool_call' } = {
-          type: 'tool_call',
-          name: update.title ?? 'unknown',
-          status: update.status ?? 'pending',
-          timestamp,
-        }
-        toolCallMap.set(toolCallId, { start: timestamp, step })
-        trajectory.push(step)
-      }
-    } else if (update.type === 'plan') {
-      trajectory.push({
-        type: 'plan',
-        entries: [],
-        timestamp,
-      })
-    }
-  }
-
-  return trajectory
-}
-
-/** Extract final text output from trajectory */
-export const extractOutput = (trajectory: TrajectoryStep[]): string => {
-  return trajectory
-    .filter((step): step is TrajectoryStep & { type: 'message' } => step.type === 'message')
-    .map((step) => step.content)
-    .join('\n')
-}
-
-/** Check if any tool calls failed */
-export const hasToolErrors = (trajectory: TrajectoryStep[]): boolean => {
-  return trajectory.some((step) => step.type === 'tool_call' && step.status === 'failed')
-}
-
-/** Head/tail preview of content */
-export const headTailPreview = (content: string, headLines = HEAD_LINES, tailLines = TAIL_LINES): string => {
-  const lines = content.split('\n')
-  if (lines.length <= headLines + tailLines) {
-    return content
-  }
-  const head = lines.slice(0, headLines).join('\n')
-  const tail = lines.slice(-tailLines).join('\n')
-  const omitted = lines.length - headLines - tailLines
-  return `${head}\n\n// ... ${omitted} lines omitted ...\n\n${tail}`
-}
-
-/** Extract file path from tool input if present */
-export const extractFilePath = (input: unknown): string | undefined => {
-  const result = ToolInputSchema.safeParse(input)
-  if (!result.success) return undefined
-  return result.data.file_path ?? result.data.path
-}
-
-/** Extract content from tool input if present */
-export const extractContent = (input: unknown): string | undefined => {
-  const result = ToolInputSchema.safeParse(input)
-  if (!result.success) return undefined
-  return result.data.content ?? result.data.new_string
-}
-
-/** Write output line (to stdout or file) */
-const writeOutput = async (line: string, outputPath?: string, append?: boolean): Promise<void> => {
-  if (outputPath) {
-    if (append) {
-      await appendFile(outputPath, `${line}\n`)
-    } else {
-      await Bun.write(outputPath, `${line}\n`)
-    }
-  } else {
-    // biome-ignore lint/suspicious/noConsole: CLI stdout output
-    console.log(line)
-  }
-}
-
-/** Log progress to stderr (doesn't pollute stdout) */
-const logProgress = (message: string, showProgress: boolean): void => {
-  if (showProgress) {
-    console.error(message)
-  }
-}
-
-/** Resolve path relative to process.cwd() */
-const resolvePath = (path: string): string => {
-  if (path.startsWith('/')) return path
-  return `${process.cwd()}/${path}`
-}
-
-/**
- * Detect trajectory richness level from captured steps.
- *
- * @remarks
- * Different adapters provide varying levels of detail:
- * - `full`: Has thoughts, tool calls, or plans (e.g., Claude Code)
- * - `messages-only`: Only message steps present
- * - `minimal`: Empty or unknown content
- *
- * Uses single-pass iteration with early exit for efficiency.
- */
-export const detectTrajectoryRichness = (trajectory: TrajectoryStep[]): TrajectoryRichness => {
-  let hasMessages = false
-
-  for (const step of trajectory) {
-    // Early exit: any of these means 'full' richness
-    if (step.type === 'thought' || step.type === 'tool_call' || step.type === 'plan') {
-      return 'full'
-    }
-    if (step.type === 'message') {
-      hasMessages = true
-    }
-  }
-
-  return hasMessages ? 'messages-only' : 'minimal'
-}
-
-/** Get preview text for input (handles string or array) */
-const getInputPreview = (input: string | string[]): string => {
-  if (Array.isArray(input)) {
-    const first = input[0] ?? ''
-    return `[${input.length} turns] ${first.slice(0, 40)}...`
-  }
-  return input.slice(0, 50)
 }
 
 // ============================================================================

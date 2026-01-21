@@ -156,76 +156,49 @@ export const ResultConfigSchema = z.object({
 export type ResultConfig = z.infer<typeof ResultConfigSchema>
 
 // ============================================================================
+// Passthrough Type Mapping Schema
+// ============================================================================
+
+/**
+ * Schema for passthrough type mapping.
+ *
+ * @remarks
+ * Used when outputMode is 'passthrough' to map agent's native type names
+ * to standard session update types. Useful for agents with well-structured
+ * output that doesn't need complex JSONPath parsing.
+ */
+export const PassthroughTypeMapSchema = z.object({
+  /** JSON field that contains the event type (default: "type") */
+  typeField: z.string().default('type'),
+  /** Mapping from agent type values to session update types */
+  typeValues: z.record(z.string(), z.enum(['thought', 'tool_call', 'message', 'plan'])).optional(),
+})
+
+/** Passthrough type mapping type */
+export type PassthroughTypeMap = z.infer<typeof PassthroughTypeMapSchema>
+
+// ============================================================================
 // Main Adapter Schema
 // ============================================================================
 
 /**
- * Schema for headless adapter configuration (version 1).
+ * Schema for headless adapter configuration.
  *
  * @remarks
- * Version 1 is maintained for backwards compatibility.
- * New features should use version 2.
- */
-export const HeadlessAdapterSchemaV1 = z.object({
-  /** Schema version 1 */
-  version: z.literal(1),
-
-  /** Human-readable adapter name */
-  name: z.string(),
-
-  /** Base command to spawn (e.g., ["claude"], ["gemini"]) */
-  command: z.array(z.string()),
-
-  /**
-   * Session mode determines how multi-turn conversations work:
-   * - 'stream': Keep process alive, multi-turn via stdin
-   * - 'iterative': New process per turn, accumulate context in prompt
-   */
-  sessionMode: z.enum(['stream', 'iterative']),
-
-  /** How to pass the prompt */
-  prompt: PromptConfigSchema,
-
-  /** Output format configuration */
-  output: OutputConfigSchema,
-
-  /** Flags for auto-approval in headless mode (e.g., ["--allowedTools", "*"]) */
-  autoApprove: z.array(z.string()).optional(),
-
-  /** Session resume support (stream mode only) */
-  resume: ResumeConfigSchema.optional(),
-
-  /** Working directory flag (if CLI needs explicit --cwd) */
-  cwdFlag: z.string().optional(),
-
-  /** Output event mappings - how to parse CLI output into updates */
-  outputEvents: z.array(OutputEventMappingSchema),
-
-  /** Final result extraction configuration */
-  result: ResultConfigSchema,
-
-  /** Template for formatting conversation history (iterative mode only) */
-  historyTemplate: z.string().optional(),
-})
-
-/**
- * Schema for headless adapter configuration (version 2).
- *
- * @remarks
- * Version 2 adds:
- * - `timeout`: Per-agent default timeout in milliseconds
- * - `historyTemplate`: More structured template with system and turnFormat
- *
  * This schema defines everything needed to interact with a headless CLI agent:
  * - Command and flags to spawn
  * - How to pass prompts
- * - How to parse output
+ * - How to parse output (jsonpath or passthrough mode)
  * - Session handling mode
+ *
+ * Supports two output parsing modes:
+ * - 'jsonpath': Use outputEvents for complex JSONPath-based parsing (default)
+ * - 'passthrough': Direct type mapping for well-structured output
  *
  * Example (Claude):
  * ```json
  * {
- *   "version": 2,
+ *   "version": 1,
  *   "name": "claude-headless",
  *   "command": ["claude"],
  *   "sessionMode": "stream",
@@ -236,9 +209,9 @@ export const HeadlessAdapterSchemaV1 = z.object({
  * }
  * ```
  */
-export const HeadlessAdapterSchemaV2 = z.object({
-  /** Schema version 2 */
-  version: z.literal(2),
+export const HeadlessAdapterSchema = z.object({
+  /** Schema version */
+  version: z.literal(1),
 
   /** Human-readable adapter name */
   name: z.string(),
@@ -271,8 +244,18 @@ export const HeadlessAdapterSchemaV2 = z.object({
   /** Working directory flag (if CLI needs explicit --cwd) */
   cwdFlag: z.string().optional(),
 
-  /** Output event mappings - how to parse CLI output into updates */
-  outputEvents: z.array(OutputEventMappingSchema),
+  /**
+   * Output parsing mode:
+   * - 'jsonpath': Use outputEvents for complex JSONPath-based parsing (default)
+   * - 'passthrough': Direct type mapping for well-structured output
+   */
+  outputMode: z.enum(['jsonpath', 'passthrough']).default('jsonpath'),
+
+  /** Output event mappings - how to parse CLI output into updates (jsonpath mode) */
+  outputEvents: z.array(OutputEventMappingSchema).optional(),
+
+  /** Type mapping for passthrough mode */
+  passthroughTypeMap: PassthroughTypeMapSchema.optional(),
 
   /** Final result extraction configuration */
   result: ResultConfigSchema,
@@ -281,7 +264,7 @@ export const HeadlessAdapterSchemaV2 = z.object({
    * Template for formatting conversation history (iterative mode only).
    *
    * @remarks
-   * Version 2 supports both string format (simple) and object format (advanced):
+   * Supports both string format (simple) and object format (advanced):
    * - String: "User: {{input}}\nAssistant: {{output}}"
    * - Object: { system: "...", turnFormat: "..." }
    */
@@ -297,11 +280,6 @@ export const HeadlessAdapterSchemaV2 = z.object({
     ])
     .optional(),
 })
-
-/**
- * Schema for headless adapter configuration (supports v1 and v2).
- */
-export const HeadlessAdapterSchema = z.union([HeadlessAdapterSchemaV1, HeadlessAdapterSchemaV2])
 
 /** Headless adapter configuration type */
 export type HeadlessAdapterConfig = z.infer<typeof HeadlessAdapterSchema>

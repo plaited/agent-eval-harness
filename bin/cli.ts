@@ -21,6 +21,7 @@ import { balance } from '../src/balance.ts'
 import { calibrate } from '../src/calibrate.ts'
 import { capture } from '../src/capture.ts'
 import { headless } from '../src/headless.ts'
+import { compare, extract, format, grade, run } from '../src/pipeline.ts'
 import { schemasCli } from '../src/schemas-cli.ts'
 import { summarize } from '../src/summarize.ts'
 import { trials } from '../src/trials.ts'
@@ -43,6 +44,13 @@ Commands:
   schemas          Export JSON schemas for non-TypeScript users
   headless         Schema-driven adapter for any headless CLI agent
 
+Pipeline Commands (Unix-style composable):
+  run              Execute prompts and output raw results
+  extract          Parse raw output into trajectories
+  grade            Apply grader to extracted results
+  format           Convert results to different output formats
+  compare          Compare multiple runs of the same prompts
+
 Run 'agent-eval-harness <command> --help' for command-specific help.
 
 Examples:
@@ -58,11 +66,15 @@ Examples:
   # Derive summary view
   agent-eval-harness summarize results.jsonl -o summary.jsonl
 
-  # Export schemas
-  agent-eval-harness schemas --json -o schemas.json
+  # Pipeline workflow
+  cat prompts.jsonl | \\
+    agent-eval-harness run -s claude.json | \\
+    agent-eval-harness extract -s claude.json | \\
+    agent-eval-harness grade -g ./grader.ts | \\
+    agent-eval-harness format -f markdown > report.md
 
-  # Run headless adapter with schema
-  agent-eval-harness headless --schema ./claude-headless.json
+  # Compare multiple runs
+  agent-eval-harness compare run1.jsonl run2.jsonl -g ./compare-grader.ts
 
 Documentation: https://github.com/plaited/agent-eval-harness
 `)
@@ -100,6 +112,27 @@ const main = async () => {
 
     case 'headless':
       await headless(args)
+      break
+
+    // Pipeline commands
+    case 'run':
+      await run(args)
+      break
+
+    case 'extract':
+      await extract(args)
+      break
+
+    case 'grade':
+      await grade(args)
+      break
+
+    case 'format':
+      await format(args)
+      break
+
+    case 'compare':
+      await compare(args)
       break
 
     case '-h':

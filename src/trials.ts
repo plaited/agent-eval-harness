@@ -11,10 +11,9 @@
  * @packageDocumentation
  */
 
-import { appendFile } from 'node:fs/promises'
 import { parseArgs } from 'node:util'
-import { extractOutput, extractTrajectory, loadPrompts } from './capture.ts'
 import { DEFAULT_HARNESS_TIMEOUT, DEFAULT_TRIAL_COUNT } from './constants.ts'
+import { extractOutput, extractTrajectory, loadPrompts, logProgress, resolvePath, writeOutput } from './core.ts'
 import { loadGrader } from './grader-loader.ts'
 import { type HeadlessAdapterConfig, parseHeadlessConfig } from './headless.schemas.ts'
 import type { ParsedUpdate } from './headless-output-parser.ts'
@@ -96,37 +95,6 @@ export type TrialsConfig = {
   grader?: Grader
   /** Enable debug mode */
   debug?: boolean
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/** Resolve path relative to process.cwd() */
-const resolvePath = (path: string): string => {
-  if (path.startsWith('/')) return path
-  return `${process.cwd()}/${path}`
-}
-
-/** Write output line */
-const writeOutput = async (line: string, outputPath?: string, append?: boolean): Promise<void> => {
-  if (outputPath) {
-    if (append) {
-      await appendFile(outputPath, `${line}\n`)
-    } else {
-      await Bun.write(outputPath, `${line}\n`)
-    }
-  } else {
-    // biome-ignore lint/suspicious/noConsole: CLI stdout output
-    console.log(line)
-  }
-}
-
-/** Log progress to stderr */
-const logProgress = (message: string, showProgress: boolean): void => {
-  if (showProgress) {
-    console.error(message)
-  }
 }
 
 // ============================================================================
