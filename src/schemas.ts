@@ -374,7 +374,20 @@ export type IndexedStep = TrajectoryStep & { stepId: string }
 // Capture Result Schemas
 // ============================================================================
 
-/** Timing information for a capture result */
+/**
+ * Timing information for a capture result.
+ *
+ * @remarks
+ * Captures both absolute timestamps and derived durations for analysis:
+ * - `sessionCreation`: Time to initialize session (agent startup overhead)
+ * - `total`: End-to-end duration including all turns
+ * - `firstResponse`: Latency to first agent output (optional)
+ *
+ * Token counts are adapter-dependent and only present if the adapter
+ * exposes usage information (e.g., Claude Code includes them, others may not).
+ *
+ * @public
+ */
 export const TimingSchema = z.object({
   /** Epoch timestamp when capture started */
   start: z.number(),
@@ -382,17 +395,21 @@ export const TimingSchema = z.object({
   end: z.number(),
   /** Time to first response (ms from start) */
   firstResponse: z.number().optional(),
-  /** Time to create session (ms) */
+  /** Time to create session (ms) - measures agent initialization overhead */
   sessionCreation: z.number(),
-  /** Total duration (end - start) */
+  /** Total duration (end - start) in milliseconds */
   total: z.number(),
-  /** Input tokens consumed (if available from ACP) */
+  /** Input tokens consumed (if available from ACP adapter) */
   inputTokens: z.number().optional(),
-  /** Output tokens generated (if available from ACP) */
+  /** Output tokens generated (if available from ACP adapter) */
   outputTokens: z.number().optional(),
 })
 
-/** Timing information type */
+/**
+ * Timing information type inferred from TimingSchema.
+ *
+ * @public
+ */
 export type Timing = z.infer<typeof TimingSchema>
 
 /**
