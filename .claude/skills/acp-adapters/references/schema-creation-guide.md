@@ -204,9 +204,7 @@ All 6 checks should pass:
 
 ## CLI Documentation Links
 
-> **Requirement:** The headless adapter requires JSON streaming output. See the JSON Output Flag column.
-
-### Compatible Agents
+> **7 of 8 agents compatible.** The headless adapter requires JSON streaming output.
 
 | Agent | JSON Output Flag | Prompt Flag | CLI Documentation |
 |-------|------------------|-------------|-------------------|
@@ -218,11 +216,7 @@ All 6 checks should pass:
 | Letta | `--output-format stream-json` | `-p` | [docs.letta.com/letta-code/cli-reference](https://docs.letta.com/letta-code/cli-reference/) |
 | OpenCode | `--format json` | positional | [opencode.ai/docs/cli](https://opencode.ai/docs/cli/) |
 
-### Incompatible (No JSON Output)
-
-| Agent | CLI Documentation | Issue |
-|-------|-------------------|-------|
-| Copilot | [docs.github.com/.../about-copilot-cli](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli) | No structured output |
+**Not yet compatible:** [Copilot CLI](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli) (no JSON output)
 
 > **Note:** For detailed ACP protocol questions during schema creation, use the `agent-client-protocol-docs` MCP server. See SKILL.md for configuration.
 
