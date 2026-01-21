@@ -10,9 +10,9 @@
  */
 
 import { describe, expect, test } from 'bun:test'
-import { HeadlessAdapterSchema, parseHeadlessConfig, safeParseHeadlessConfig } from '../headless/headless.schemas.ts'
-import { createHistoryBuilder } from '../headless/history-builder.ts'
-import { createOutputParser, jsonPath, jsonPathString } from '../headless/output-parser.ts'
+import { HeadlessAdapterSchema, parseHeadlessConfig, safeParseHeadlessConfig } from '../headless.schemas.ts'
+import { createHistoryBuilder } from '../headless-history-builder.ts'
+import { createOutputParser, jsonPath, jsonPathString } from '../headless-output-parser.ts'
 
 // ============================================================================
 // Test Fixtures

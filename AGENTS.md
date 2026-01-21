@@ -59,10 +59,11 @@ See `.claude/skills/acp-harness/SKILL.md` for complete documentation.
 
 Discover, create, and validate ACP adapters for agent integration.
 
-**Commands:** `adapter:scaffold`, `adapter:check`
+**Commands:** `headless`, `adapter:scaffold`, `adapter:check`
 
 **Use cases:**
 - Finding existing adapters for your agent
+- Wrapping headless CLI agents with schema-driven adapter
 - Building custom ACP adapters from scratch
 - Validating adapter ACP compliance
 

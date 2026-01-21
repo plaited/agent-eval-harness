@@ -13,6 +13,7 @@
  * - `validateRefs` - Check reference solutions
  * - `balance` - Analyze test set coverage
  * - `schemasCli` - Export JSON schemas
+ * - `headless` - Schema-driven adapter for headless CLI agents
  *
  * @packageDocumentation
  */
@@ -25,6 +26,9 @@ export { calibrate, runCalibrate } from './calibrate.ts'
 export type { CaptureConfig } from './capture.ts'
 // Command implementations (for programmatic use)
 export { capture, extractOutput, extractTrajectory, hasToolErrors, loadPrompts, runCapture } from './capture.ts'
+export type { HeadlessAdapterConfig } from './headless.ts'
+// Headless adapter factory
+export { headless } from './headless.ts'
 export type { SchemasConfig } from './schemas-cli.ts'
 export { runSchemas, schemasCli } from './schemas-cli.ts'
 export type { SummarizeConfig } from './summarize.ts'

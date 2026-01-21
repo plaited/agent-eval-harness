@@ -28,18 +28,12 @@ CLI tool for capturing trajectories from ACP-compatible agents, optimized for Ty
 ## Installation
 
 ```bash
-# Run without installing (recommended for CI)
+# Run without installing (recommended)
 bunx @plaited/acp-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
 
-# Or install globally for repeated use
-bun add -g @plaited/acp-harness
-acp-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
-
-# Or add as project dependency
+# Or install as project dependency
 bun add @plaited/acp-harness
 ```
-
-**Note:** Examples below use `acp-harness` (the command available after global install). Replace with `bunx @plaited/acp-harness` if not installed globally.
 
 ## Core Principle: Capture Once, Derive Many Views
 
@@ -79,7 +73,7 @@ All commands support optional `--grader ./grader.ts` for scoring.
 ### Basic Usage
 
 ```bash
-acp-harness capture <prompts.jsonl> <command> [args...] [options]
+bunx @plaited/acp-harness capture <prompts.jsonl> <command> [args...] [options]
 ```
 
 ### Arguments
@@ -99,13 +93,13 @@ acp-harness capture <prompts.jsonl> <command> [args...] [options]
 
 ```bash
 # Basic capture
-acp-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
+bunx @plaited/acp-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
 
 # Using a local adapter script
-acp-harness capture prompts.jsonl bun ./my-adapter.ts -o results.jsonl
+bunx @plaited/acp-harness capture prompts.jsonl bun ./my-adapter.ts -o results.jsonl
 
 # With grader (adds score to each result)
-acp-harness capture prompts.jsonl bunx claude-code-acp --grader ./grader.ts -o results.jsonl
+bunx @plaited/acp-harness capture prompts.jsonl bunx claude-code-acp --grader ./grader.ts -o results.jsonl
 ```
 
 ## Trials Command
@@ -114,10 +108,10 @@ Run each prompt multiple times for pass@k/pass^k analysis.
 
 ```bash
 # Capture only (no grader)
-acp-harness trials prompts.jsonl bunx claude-code-acp -k 5 -o trials.jsonl
+bunx @plaited/acp-harness trials prompts.jsonl bunx claude-code-acp -k 5 -o trials.jsonl
 
 # With grader (computes pass@k, pass^k)
-acp-harness trials prompts.jsonl bunx claude-code-acp -k 5 --grader ./grader.ts -o trials.jsonl
+bunx @plaited/acp-harness trials prompts.jsonl bunx claude-code-acp -k 5 --grader ./grader.ts -o trials.jsonl
 ```
 
 ### Output
@@ -138,10 +132,10 @@ Derive compact views from full trajectory results.
 
 ```bash
 # Summary JSONL (for jq analysis)
-acp-harness summarize results.jsonl -o summary.jsonl
+bunx @plaited/acp-harness summarize results.jsonl -o summary.jsonl
 
 # Markdown (for LLM-as-judge)
-acp-harness summarize results.jsonl --markdown -o results.md
+bunx @plaited/acp-harness summarize results.jsonl --markdown -o results.md
 ```
 
 ## Calibrate Command
@@ -150,10 +144,10 @@ Sample failures for grader review. Calibration helps you distinguish between **a
 
 ```bash
 # Sample failures for human review
-acp-harness calibrate results.jsonl --sample 10 -o calibration.md
+bunx @plaited/acp-harness calibrate results.jsonl --sample 10 -o calibration.md
 
 # Re-score with different grader to compare
-acp-harness calibrate results.jsonl --grader ./loose-grader.ts --sample 10 -o comparison.md
+bunx @plaited/acp-harness calibrate results.jsonl --grader ./loose-grader.ts --sample 10 -o comparison.md
 ```
 
 See [eval-concepts.md](references/eval-concepts.md#grader-calibration) for why calibration matters.
@@ -164,7 +158,7 @@ Check that reference solutions pass your grader before evaluating agents.
 
 ```bash
 # Validate reference solutions
-acp-harness validate-refs prompts.jsonl --grader ./grader.ts -o validation.jsonl
+bunx @plaited/acp-harness validate-refs prompts.jsonl --grader ./grader.ts -o validation.jsonl
 
 # Check for failures
 cat validation.jsonl | jq 'select(.pass == false)'
@@ -199,10 +193,10 @@ Analyze test set coverage to ensure balanced evaluation.
 
 ```bash
 # Analyze prompt distribution
-acp-harness balance prompts.jsonl -o balance.json
+bunx @plaited/acp-harness balance prompts.jsonl -o balance.json
 
 # Pretty print
-acp-harness balance prompts.jsonl | jq .
+bunx @plaited/acp-harness balance prompts.jsonl | jq .
 ```
 
 ### Why Use This?
@@ -247,15 +241,15 @@ Export JSON schemas for non-TypeScript tools.
 
 ```bash
 # List available schemas
-acp-harness schemas
+bunx @plaited/acp-harness schemas
 
 # Export all schemas as JSON
-acp-harness schemas --json -o schemas.json
+bunx @plaited/acp-harness schemas --json -o schemas.json
 
 # Export specific schema
-acp-harness schemas CaptureResult --json
-acp-harness schemas TrialResult --json
-acp-harness schemas GraderResult --json
+bunx @plaited/acp-harness schemas CaptureResult --json
+bunx @plaited/acp-harness schemas TrialResult --json
+bunx @plaited/acp-harness schemas GraderResult --json
 ```
 
 ### Available Schemas
@@ -275,7 +269,7 @@ Export schemas for validation in Python, Go, etc.:
 
 ```bash
 # Export all schemas
-acp-harness schemas --json -o schemas.json
+bunx @plaited/acp-harness schemas --json -o schemas.json
 
 # Use in Python with jsonschema
 python -c "
@@ -337,7 +331,7 @@ print(json.dumps({
 
 ```bash
 chmod +x ./grader.py
-acp-harness capture prompts.jsonl bunx claude-code-acp --grader ./grader.py -o results.jsonl
+bunx @plaited/acp-harness capture prompts.jsonl bunx claude-code-acp --grader ./grader.py -o results.jsonl
 ```
 
 See [graders.md](references/graders.md) for complete polyglot grader documentation including shell scripts and LLM-as-judge patterns.
@@ -432,8 +426,8 @@ const jsonSchema = z.toJSONSchema(CaptureResultSchema)
 Or export JSON schemas for non-TypeScript tools:
 
 ```bash
-acp-harness schemas --json -o schemas.json
-acp-harness schemas CaptureResult --json
+bunx @plaited/acp-harness schemas --json -o schemas.json
+bunx @plaited/acp-harness schemas CaptureResult --json
 ```
 
 ## Execution Environment
@@ -458,7 +452,7 @@ cat results.jsonl | jq 'select(.metadata.category == "ui")'
 cat results.jsonl | jq -s 'map(.trajectory | map(select(.type == "tool_call")) | length) | add'
 
 # Summarize for quick analysis
-acp-harness summarize results.jsonl -o summary.jsonl
+bunx @plaited/acp-harness summarize results.jsonl -o summary.jsonl
 ```
 
 See [downstream.md](references/downstream.md) for integration patterns with Braintrust, Gemini, and custom scorers.

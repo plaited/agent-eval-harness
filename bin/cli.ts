@@ -14,6 +14,7 @@
  * - validate-refs: Check reference solutions
  * - balance: Analyze test set coverage
  * - schemas: Export JSON schemas for non-TS users
+ * - headless: Schema-driven adapter for any headless CLI agent
  * - adapter:scaffold: Scaffold new ACP adapter project
  * - adapter:check: Validate adapter ACP compliance
  */
@@ -23,6 +24,7 @@ import { adapterScaffold } from '../src/adapter-scaffold.ts'
 import { balance } from '../src/balance.ts'
 import { calibrate } from '../src/calibrate.ts'
 import { capture } from '../src/capture.ts'
+import { headless } from '../src/headless.ts'
 import { schemasCli } from '../src/schemas-cli.ts'
 import { summarize } from '../src/summarize.ts'
 import { trials } from '../src/trials.ts'
@@ -43,6 +45,7 @@ Commands:
   validate-refs    Check reference solutions against grader
   balance          Analyze test set coverage
   schemas          Export JSON schemas for non-TypeScript users
+  headless         Schema-driven adapter for any headless CLI agent
   adapter:scaffold Scaffold a new ACP adapter project
   adapter:check    Validate adapter ACP compliance
 
@@ -69,6 +72,14 @@ Examples:
 
   # Validate adapter compliance
   acp-harness adapter:check bun ./my-adapter/src/main.ts
+
+  # Run headless adapter with schema
+  acp-harness headless --schema ./claude-headless.json
+
+  # Capture with headless adapter
+  acp-harness capture prompts.jsonl \\
+    acp-harness headless --schema ./claude-headless.json \\
+    -o results.jsonl
 
 Documentation: https://github.com/plaited/acp-harness
 `)
@@ -102,6 +113,10 @@ const main = async () => {
 
     case 'schemas':
       await schemasCli(args)
+      break
+
+    case 'headless':
+      await headless(args)
       break
 
     case 'adapter:scaffold':

@@ -13,8 +13,8 @@
 
 import type { Subprocess } from 'bun'
 import type { HeadlessAdapterConfig } from './headless.schemas.ts'
-import { createHistoryBuilder, type HistoryBuilder } from './history-builder.ts'
-import { createOutputParser, type OutputParser, type ParsedUpdate } from './output-parser.ts'
+import { createHistoryBuilder, type HistoryBuilder } from './headless-history-builder.ts'
+import { createOutputParser, type OutputParser, type ParsedUpdate } from './headless-output-parser.ts'
 
 // ============================================================================
 // Types

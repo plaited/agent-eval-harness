@@ -28,9 +28,9 @@
 
 import { createInterface } from 'node:readline'
 import { parseArgs } from 'node:util'
-import { ACP_PROTOCOL_VERSION } from '../constants.ts'
+import { ACP_PROTOCOL_VERSION } from './constants.ts'
 import { type HeadlessAdapterConfig, parseHeadlessConfig } from './headless.schemas.ts'
-import { createSessionManager, type SessionManager } from './session-manager.ts'
+import { createSessionManager, type SessionManager } from './headless-session-manager.ts'
 
 // ============================================================================
 // Types

@@ -291,6 +291,7 @@ export const createACPClient = (config: ACPClientConfig) => {
 
     const response = await transport.request<{ sessionId: string }>(ACP_METHODS.CREATE_SESSION, {
       cwd: params.cwd,
+      mcpServers: [], // Required field - empty array lets agents auto-discover from cwd
     })
     return { id: response.sessionId }
   }

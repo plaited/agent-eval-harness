@@ -34,10 +34,7 @@ export {
   ResultConfigSchema,
   ResumeConfigSchema,
   safeParseHeadlessConfig,
-} from './headless/headless.schemas.ts'
-// CLI entry point
-export { headless } from './headless/headless.ts'
-
+} from './headless.schemas.ts'
 // Types
 export type {
   HeadlessAdapterConfig,
@@ -48,25 +45,27 @@ export type {
   PromptConfig,
   ResultConfig,
   ResumeConfig,
-} from './headless/headless.types.ts'
-export type { HistoryBuilder, HistoryBuilderConfig, HistoryTurn } from './headless/history-builder.ts'
+} from './headless.types.ts'
+// CLI entry point
+export { headless } from './headless-cli.ts'
+export type { HistoryBuilder, HistoryBuilderConfig, HistoryTurn } from './headless-history-builder.ts'
 // History builder
-export { createHistoryBuilder } from './headless/history-builder.ts'
+export { createHistoryBuilder } from './headless-history-builder.ts'
 export type {
   OutputParser,
   ParsedResult,
   ParsedUpdate,
   ResultParseResult,
   SessionUpdateType,
-} from './headless/output-parser.ts'
+} from './headless-output-parser.ts'
 // Output parser
-export { createOutputParser, jsonPath, jsonPathString } from './headless/output-parser.ts'
+export { createOutputParser, jsonPath, jsonPathString } from './headless-output-parser.ts'
 export type {
   PromptResult,
   Session,
   SessionManager,
   SessionManagerConfig,
   UpdateCallback,
-} from './headless/session-manager.ts'
+} from './headless-session-manager.ts'
 // Session manager
-export { createSessionManager } from './headless/session-manager.ts'
+export { createSessionManager } from './headless-session-manager.ts'
