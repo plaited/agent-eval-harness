@@ -7,14 +7,17 @@
  *
  * **Run in Docker only** for consistent environment:
  * ```bash
- * GOOGLE_API_KEY=... bun test ./src/tests/acp-integration-gemini.docker.ts
+ * GEMINI_API_KEY=... bun test ./src/tests/acp-integration-gemini.docker.ts
  * ```
  *
  * Prerequisites:
  * 1. Docker installed
- * 2. API key: `GOOGLE_API_KEY` environment variable
+ * 2. API key: `GEMINI_API_KEY` environment variable
  *
  * These tests make real API calls and consume credits.
+ *
+ * MCP servers are auto-discovered from project root via:
+ * - `.gemini/settings.json` - Gemini MCP server configuration
  */
 
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from 'bun:test'
@@ -24,8 +27,8 @@ import { createPrompt, summarizeResponse } from '../acp-helpers.ts'
 // Long timeout for real agent interactions (2 minutes)
 setDefaultTimeout(120000)
 
-// Fixtures directory with .claude/skills and .mcp.json
-const FIXTURES_DIR = `${import.meta.dir}/fixtures`
+// Use project root as cwd - agents discover MCP servers from config files
+const PROJECT_ROOT = process.cwd()
 
 // Gemini CLI accepts both GOOGLE_API_KEY and GEMINI_API_KEY
 // Use either one if available
@@ -72,10 +75,10 @@ describeWithApiKey('ACP Client Integration - Gemini', () => {
     expect(capabilities).toBeDefined()
   })
 
-  test('creates session', async () => {
+  test('creates session with project cwd', async () => {
+    // Session uses project root - agent discovers MCP servers from .gemini/settings.json
     const session = await client.createSession({
-      cwd: FIXTURES_DIR,
-      mcpServers: [],
+      cwd: PROJECT_ROOT,
     })
 
     expect(session).toBeDefined()
@@ -85,8 +88,7 @@ describeWithApiKey('ACP Client Integration - Gemini', () => {
 
   test('sends prompt and receives response', async () => {
     const session = await client.createSession({
-      cwd: FIXTURES_DIR,
-      mcpServers: [],
+      cwd: PROJECT_ROOT,
     })
 
     // Simple prompt that doesn't require tools
@@ -108,8 +110,7 @@ describeWithApiKey('ACP Client Integration - Gemini', () => {
 
   test('streaming prompt yields updates', async () => {
     const session = await client.createSession({
-      cwd: FIXTURES_DIR,
-      mcpServers: [],
+      cwd: PROJECT_ROOT,
     })
 
     const events: string[] = []
@@ -124,23 +125,27 @@ describeWithApiKey('ACP Client Integration - Gemini', () => {
     expect(events).toContain('complete')
   })
 
-  test('handles tool usage prompt', async () => {
+  test('uses MCP server from project config', async () => {
+    // This test verifies that Gemini discovers MCP servers from .gemini/settings.json
+    // The agent-client-protocol MCP server is configured at project root
     const session = await client.createSession({
-      cwd: FIXTURES_DIR,
-      mcpServers: [],
+      cwd: PROJECT_ROOT,
     })
 
-    // Prompt that should trigger tool usage - reading a specific file
+    // Query the agent-client-protocol MCP server (configured in .gemini/settings.json)
     const { updates } = await client.promptSync(
       session.id,
-      createPrompt('Use the Read tool to read calculator-mcp.ts and tell me what tools the MCP server provides.'),
+      createPrompt(
+        'Use the agent-client-protocol MCP server to search for information about ACP. ' +
+          'What is the Agent Client Protocol and what problem does it solve?',
+      ),
     )
 
     const summary = summarizeResponse(updates)
 
-    // Verify response mentions calculator tools
+    // Response should contain ACP-related information
     expect(summary.text.length).toBeGreaterThan(0)
-    // Response should mention the calculator tools (add, subtract, etc.)
-    expect(summary.text.toLowerCase()).toMatch(/add|subtract|multiply|divide|calculator/)
+    // Should mention protocol/agent-related concepts
+    expect(summary.text.toLowerCase()).toMatch(/agent|protocol|client|json-rpc|stdio/)
   })
 })

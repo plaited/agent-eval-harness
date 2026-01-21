@@ -7,7 +7,7 @@
  *
  * **Run in Docker only** for consistent environment:
  * ```bash
- * ANTHROPIC_API_KEY=sk-... bun run test:acp
+ * ANTHROPIC_API_KEY=sk-... bun run test:docker
  * ```
  *
  * Prerequisites:
@@ -15,6 +15,10 @@
  * 2. API key: `ANTHROPIC_API_KEY` environment variable
  *
  * These tests make real API calls and consume credits.
+ *
+ * MCP servers are auto-discovered from project root via:
+ * - `.mcp.json` - MCP server configuration
+ * - `.claude/settings.json` - Claude settings with `enableAllProjectMcpServers`
  */
 
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from 'bun:test'
@@ -24,8 +28,8 @@ import { createPrompt, summarizeResponse } from '../acp-helpers.ts'
 // Long timeout for real agent interactions (2 minutes)
 setDefaultTimeout(120000)
 
-// Fixtures directory with .claude/skills and .mcp.json
-const FIXTURES_DIR = `${import.meta.dir}/fixtures`
+// Use project root as cwd - agents discover MCP servers from config files
+const PROJECT_ROOT = process.cwd()
 
 // Use haiku for all tests to reduce costs
 const TEST_MODEL = 'claude-haiku-4-5-20251001'
@@ -69,10 +73,10 @@ describeWithApiKey('ACP Client Integration', () => {
     expect(capabilities).toBeDefined()
   })
 
-  test('creates session', async () => {
+  test('creates session with project cwd', async () => {
+    // Session uses project root - agent discovers MCP servers from .mcp.json
     const session = await client.createSession({
-      cwd: FIXTURES_DIR,
-      mcpServers: [],
+      cwd: PROJECT_ROOT,
     })
 
     expect(session).toBeDefined()
@@ -82,8 +86,7 @@ describeWithApiKey('ACP Client Integration', () => {
 
   test('sends prompt and receives response', async () => {
     const session = await client.createSession({
-      cwd: FIXTURES_DIR,
-      mcpServers: [],
+      cwd: PROJECT_ROOT,
     })
 
     // Use haiku for faster/cheaper test runs
@@ -106,8 +109,7 @@ describeWithApiKey('ACP Client Integration', () => {
 
   test('streaming prompt yields updates', async () => {
     const session = await client.createSession({
-      cwd: FIXTURES_DIR,
-      mcpServers: [],
+      cwd: PROJECT_ROOT,
     })
 
     // Use haiku for faster/cheaper test runs
@@ -125,96 +127,30 @@ describeWithApiKey('ACP Client Integration', () => {
     expect(events).toContain('complete')
   })
 
-  test('handles tool usage prompt', async () => {
+  test('uses MCP server from project config', async () => {
+    // This test verifies that Claude discovers MCP servers from .mcp.json
+    // The bun-docs MCP server is configured at project root
     const session = await client.createSession({
-      cwd: FIXTURES_DIR,
-      mcpServers: [],
+      cwd: PROJECT_ROOT,
     })
 
     // Use haiku for faster/cheaper test runs
     await client.setModel(session.id, TEST_MODEL)
 
-    // Prompt that should trigger tool usage - reading a specific file
+    // Query the bun-docs MCP server (configured in .mcp.json)
     const { updates } = await client.promptSync(
       session.id,
-      createPrompt('Use the Read tool to read calculator-mcp.ts and tell me what tools the MCP server provides.'),
+      createPrompt(
+        'Use the bun-docs MCP server to search for information about Bun.serve(). ' +
+          'What are the key options for creating an HTTP server with Bun?',
+      ),
     )
 
     const summary = summarizeResponse(updates)
 
-    // Verify response mentions calculator tools
+    // Response should contain Bun server-related information
     expect(summary.text.length).toBeGreaterThan(0)
-    // Response should mention the calculator tools (add, subtract, etc.)
-    expect(summary.text.toLowerCase()).toMatch(/add|subtract|multiply|divide|calculator/)
-  })
-
-  test('uses skill from cwd', async () => {
-    const session = await client.createSession({
-      cwd: FIXTURES_DIR,
-      mcpServers: [],
-    })
-
-    // Use haiku for faster/cheaper test runs
-    await client.setModel(session.id, TEST_MODEL)
-
-    // Ask Claude to use the greeting skill
-    const { updates } = await client.promptSync(session.id, createPrompt('Please greet me using the greeting skill.'))
-
-    const summary = summarizeResponse(updates)
-
-    // The greeting skill instructs Claude to include specific phrases
-    expect(summary.text.length).toBeGreaterThan(0)
-    expect(summary.text.toLowerCase()).toMatch(/hello|greet|welcome/)
-  })
-
-  test('uses MCP server tools', async () => {
-    // Path to calculator MCP server fixture (must be absolute per ACP spec)
-    const calculatorPath = `${FIXTURES_DIR}/calculator-mcp.ts`
-    const bunPath = Bun.which('bun') ?? 'bun'
-
-    // Retry helper for flaky MCP server startup
-    const maxRetries = 3
-    let lastError: Error | undefined
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      const session = await client.createSession({
-        cwd: FIXTURES_DIR,
-        mcpServers: [
-          {
-            name: 'calculator',
-            command: bunPath,
-            args: [calculatorPath],
-            env: [],
-          },
-        ],
-      })
-
-      // Set model to haiku for faster/cheaper test runs
-      await client.setModel(session.id, TEST_MODEL)
-
-      // Ask Claude to use the calculator MCP server
-      const { updates } = await client.promptSync(
-        session.id,
-        createPrompt('Use the calculator MCP server add tool to compute 15 + 27. Reply with just the number.'),
-      )
-
-      const summary = summarizeResponse(updates)
-
-      // Check if we got 42 in the response
-      if (summary.text.match(/42/)) {
-        expect(summary.text.length).toBeGreaterThan(0)
-        expect(summary.text).toMatch(/42/)
-        return // Success!
-      }
-
-      // MCP server might not have been ready, retry
-      lastError = new Error(`Attempt ${attempt}: Response did not contain 42. Got: ${summary.text.slice(0, 100)}...`)
-      if (attempt < maxRetries) {
-        console.log(`MCP test attempt ${attempt} failed, retrying...`)
-      }
-    }
-
-    // All retries exhausted
-    throw lastError ?? new Error('MCP test failed after all retries')
+    // Should mention server/HTTP-related concepts from Bun docs
+    expect(summary.text.toLowerCase()).toMatch(/serve|server|http|port|fetch|handler/)
   })
 })

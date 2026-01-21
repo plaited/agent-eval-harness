@@ -102,7 +102,7 @@ describe('Operations before connection', () => {
       command: ['echo', 'test'],
     })
 
-    await expect(client.createSession({ cwd: '/tmp', mcpServers: [] })).rejects.toThrow('Not connected')
+    await expect(client.createSession({ cwd: '/tmp' })).rejects.toThrow('Not connected')
   })
 
   test('promptSync throws when not connected', async () => {

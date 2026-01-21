@@ -185,7 +185,6 @@ const checkSessionNew = async (
   try {
     const response = await transport.request<{ sessionId: string }>(ACP_METHODS.CREATE_SESSION, {
       cwd: process.cwd(),
-      mcpServers: [],
     })
 
     if (!response || !response.sessionId) {
