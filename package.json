@@ -1,6 +1,6 @@
 {
   "name": "@plaited/agent-eval-harness",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "CLI tool for capturing agent trajectories from headless CLI agents",
   "license": "ISC",
   "engines": {
