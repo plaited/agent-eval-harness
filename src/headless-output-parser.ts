@@ -199,15 +199,19 @@ export const createOutputParser = (config: HeadlessAdapterConfig) => {
         for (const item of matchValue) {
           // Check if this array item matches the expected value
           if (mapping.match.value === '*') {
+            // Wildcard: match any non-null item
             if (item !== undefined && item !== null) {
               updates.push(createUpdate(item, mapping))
             }
-          } else if (item === mapping.match.value || (typeof item === 'object' && item !== null)) {
-            // For objects, check if they contain the match value
+          } else if (typeof item === 'object' && item !== null && 'type' in item) {
+            // For objects with 'type' property, check nested match
             const itemType = (item as Record<string, unknown>).type
             if (itemType === mapping.match.value) {
               updates.push(createUpdate(item, mapping))
             }
+          } else if (item === mapping.match.value) {
+            // For primitives, direct match
+            updates.push(createUpdate(item, mapping))
           }
         }
         if (updates.length > 0) {

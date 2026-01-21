@@ -349,7 +349,7 @@ const collectOutput = async (
 
           // Parse as update first (so updates are emitted even for result lines)
           const update = parser.parseLine(line)
-          if (update) {
+          if (update !== null) {
             // Handle both single updates and arrays of updates (from wildcard matches)
             const updatesToProcess = Array.isArray(update) ? update : [update]
 
