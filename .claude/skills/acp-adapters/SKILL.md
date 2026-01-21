@@ -76,6 +76,25 @@ bunx @plaited/acp-harness headless --schema <path>
 | `stream` | Keep process alive, multi-turn via stdin | CLI supports session resume |
 | `iterative` | New process per turn, accumulate history | CLI is stateless |
 
+**Multi-turn Conversations:**
+
+Both modes support multi-turn conversations. Send multiple prompts to the same session:
+
+```typescript
+// Create one session, send multiple prompts
+const session = await client.createSession({ cwd: PROJECT_ROOT })
+
+// Turn 1
+const { updates: turn1 } = await client.promptSync(session.id, createPrompt('Remember: 42'))
+
+// Turn 2 - context is maintained
+const { updates: turn2 } = await client.promptSync(session.id, createPrompt('What number?'))
+```
+
+How context is preserved:
+- **stream mode:** Process stays alive, CLI maintains internal state
+- **iterative mode:** Adapter builds history using `historyTemplate` from schema
+
 ---
 
 ### adapter:check

@@ -148,4 +148,27 @@ describeWithApiKey('Headless Adapter Integration - Gemini', () => {
     // Should mention protocol/agent-related concepts
     expect(summary.text.toLowerCase()).toMatch(/agent|protocol|client|json-rpc|stdio/)
   })
+
+  test('multi-turn conversation maintains context (iterative mode)', async () => {
+    // Multi-turn via headless adapter in iterative mode (history accumulation)
+    const session = await client.createSession({
+      cwd: PROJECT_ROOT,
+    })
+
+    // Turn 1: Establish context
+    const { updates: turn1Updates } = await client.promptSync(
+      session.id,
+      createPrompt('Remember this number: 42. Just confirm you have it.'),
+    )
+    const turn1Summary = summarizeResponse(turn1Updates)
+    expect(turn1Summary.text).toMatch(/42|forty.?two|remember/i)
+
+    // Turn 2: Reference previous context
+    const { updates: turn2Updates } = await client.promptSync(
+      session.id,
+      createPrompt('What number did I ask you to remember? Reply with just the number.'),
+    )
+    const turn2Summary = summarizeResponse(turn2Updates)
+    expect(turn2Summary.text).toMatch(/42/)
+  })
 })

@@ -452,6 +452,35 @@ ANTHROPIC_API_KEY=sk-... GEMINI_API_KEY=... docker compose -f docker-compose.tes
 
 See [docker-evals.md](references/docker-evals.md) for complete Docker setup guide, debugging tips, and CI integration patterns.
 
+### Multi-turn Conversations
+
+Use `input: string[]` to execute multi-turn conversations within a single session:
+
+```jsonl
+{"id":"context-001","input":["Remember this number: 42","What number did I ask you to remember?"],"hint":"42"}
+{"id":"context-002","input":["My name is Alice","What is my name?"],"hint":"Alice"}
+```
+
+Run with the headless adapter:
+
+```bash
+# Using Claude Code via headless adapter
+bunx @plaited/acp-harness capture multi-turn.jsonl \
+  bunx @plaited/acp-harness headless --schema ./claude-headless.json \
+  -o results.jsonl
+
+# Using Gemini CLI via headless adapter
+GEMINI_API_KEY=... bunx @plaited/acp-harness capture multi-turn.jsonl \
+  bunx @plaited/acp-harness headless --schema ./gemini-headless.json \
+  -o results.jsonl
+```
+
+**Key points:**
+- Each JSONL entry = 1 fresh session
+- `input: string[]` sends sequential turns to the **same session**
+- Works with both `stream` mode (Claude) and `iterative` mode (Gemini)
+- The adapter handles context preservation automatically
+
 ## Downstream Integration
 
 The harness outputs standard JSONL that pipes to any tool:
