@@ -115,11 +115,12 @@ Create a new conversation session.
   "id": 2,
   "method": "session/new",
   "params": {
-    "cwd": "/path/to/workspace",
-    "mcpServers": []
+    "cwd": "/path/to/workspace"
   }
 }
 ```
+
+> **Note:** MCP servers are discovered from cwd configuration files (e.g., `.mcp.json`, `.gemini/settings.json`).
 
 **Response:**
 ```json

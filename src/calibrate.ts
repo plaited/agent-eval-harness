@@ -57,17 +57,37 @@ const loadResults = async (path: string): Promise<CaptureResult[]> => {
 }
 
 /**
- * Random sample from array.
+ * Randomly sample n elements from an array using Fisher-Yates shuffle.
  *
  * @param arr - Array to sample from
  * @param n - Number of samples to take
- * @returns Array of sampled elements
+ * @returns Array of sampled elements in random order
+ *
+ * @remarks
+ * Uses Fisher-Yates (Knuth) shuffle for uniform distribution.
+ * Creates a copy to avoid mutating the input array.
+ * O(n) time complexity with O(n) space for the copy.
+ * Not cryptographically secure (uses Math.random).
  *
  * @public
  */
 export const sampleArray = <T>(arr: T[], n: number): T[] => {
-  const shuffled = [...arr].sort(() => 0.5 - Math.random())
-  return shuffled.slice(0, n)
+  if (n <= 0) return []
+  if (n >= arr.length) return [...arr]
+
+  const copy = [...arr]
+
+  // Fisher-Yates shuffle working backwards through array
+  // Only shuffle enough elements to get n samples
+  const limit = copy.length - n
+  for (let i = copy.length - 1; i >= limit && i > 0; i--) {
+    // Random index from 0 to i (inclusive)
+    const j = Math.floor(Math.random() * (i + 1))
+    // Swap elements
+    ;[copy[i], copy[j]] = [copy[j]!, copy[i]!]
+  }
+
+  return copy.slice(-n)
 }
 
 /**

@@ -156,10 +156,8 @@ export const handleSessionNew = async (
   params: SessionNewRequest
 ): Promise<SessionNewResponse> => {
   // Create session in your session manager
-  const sessionId = sessionManager.createSession({
-    cwd: params.cwd,
-    mcpServers: params.mcpServers ?? [],
-  })
+  // MCP servers are discovered from cwd configuration files
+  const sessionId = sessionManager.createSession({ cwd: params.cwd })
 
   return { sessionId }
 }
@@ -172,19 +170,17 @@ import { randomUUID } from 'node:crypto'
 type Session = {
   id: string
   cwd: string
-  mcpServers: unknown[]
   createdAt: Date
 }
 
 class SessionManager {
   #sessions = new Map<string, Session>()
 
-  createSession(params: { cwd: string; mcpServers: unknown[] }): string {
+  createSession(params: { cwd: string }): string {
     const id = `sess_${randomUUID().slice(0, 8)}`
     this.#sessions.set(id, {
       id,
       cwd: params.cwd,
-      mcpServers: params.mcpServers,
       createdAt: new Date(),
     })
     return id
