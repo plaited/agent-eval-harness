@@ -57,6 +57,8 @@ export type SessionManagerConfig = {
   schema: HeadlessAdapterConfig
   /** Default timeout for operations in ms */
   timeout?: number
+  /** Whether to show debug output (constructed commands) */
+  verbose?: boolean
 }
 
 // ============================================================================
@@ -84,7 +86,7 @@ export type SessionManagerConfig = {
  * @returns Session manager with create, prompt, and cancel methods
  */
 export const createSessionManager = (config: SessionManagerConfig) => {
-  const { schema, timeout = 60000 } = config
+  const { schema, timeout = 60000, verbose = false } = config
   const sessions = new Map<string, Session>()
   const outputParser = createOutputParser(schema)
 
@@ -164,9 +166,10 @@ export const createSessionManager = (config: SessionManagerConfig) => {
         stderr: 'inherit',
       })
 
-      // If using stdin, write the prompt
+      // If using stdin, write the prompt and close stdin
+      // (stream mode spawns new process per turn, so stdin should close after writing)
       if (schema.prompt.stdin && session.process) {
-        writePromptToStdin(session.process, promptText)
+        writePromptToStdin(session.process, promptText, true)
       }
     } else {
       // Subsequent turns: spawn new process with resume flag
@@ -180,9 +183,10 @@ export const createSessionManager = (config: SessionManagerConfig) => {
         stderr: 'inherit',
       })
 
-      // If using stdin, write the prompt
+      // If using stdin, write the prompt and close stdin
+      // (stream mode spawns new process per turn, so stdin should close after writing)
       if (schema.prompt.stdin && session.process) {
-        writePromptToStdin(session.process, promptText)
+        writePromptToStdin(session.process, promptText, true)
       }
     }
 
@@ -211,9 +215,10 @@ export const createSessionManager = (config: SessionManagerConfig) => {
       stderr: 'inherit',
     })
 
-    // If using stdin, write the prompt
+    // If using stdin, write the prompt and close stdin
+    // (iterative mode spawns new process per turn, so stdin should close after writing)
     if (schema.prompt.stdin && session.process) {
-      writePromptToStdin(session.process, fullPrompt)
+      writePromptToStdin(session.process, fullPrompt, true)
     }
 
     const result = await collectOutput(session, outputParser, onUpdate, timeout)
@@ -261,6 +266,12 @@ export const createSessionManager = (config: SessionManagerConfig) => {
         // Positional argument (no flag)
         args.push(promptText)
       }
+    }
+
+    // Debug output: show constructed command
+    if (verbose) {
+      const stdinNote = schema.prompt.stdin ? ' (+ stdin)' : ''
+      console.error(`[headless] Command: ${args.join(' ')}${stdinNote}`)
     }
 
     return args
@@ -336,15 +347,24 @@ const generateSessionId = (): string => {
  * - `'ignore'` → null (not writable)
  * - number → file descriptor (not a FileSink)
  *
+ * **Closing stdin:** When `closeAfterWrite` is true, the stdin stream is
+ * closed after writing. This is required for CLIs that read from stdin
+ * with `-` and wait for EOF before processing (e.g., Codex). For stream
+ * mode sessions where stdin stays open for subsequent prompts, pass false.
+ *
  * @param process - Subprocess with stdin stream
  * @param prompt - Prompt text to write
+ * @param closeAfterWrite - Whether to close stdin after writing (default: false)
  *
  * @internal
  */
-const writePromptToStdin = (process: Subprocess, prompt: string): void => {
+const writePromptToStdin = (process: Subprocess, prompt: string, closeAfterWrite = false): void => {
   if (process.stdin && typeof process.stdin !== 'number') {
     process.stdin.write(`${prompt}\n`)
     process.stdin.flush()
+    if (closeAfterWrite) {
+      process.stdin.end()
+    }
   }
 }
 

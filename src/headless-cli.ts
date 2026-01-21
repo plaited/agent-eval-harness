@@ -235,9 +235,10 @@ const mapToACPUpdate = (update: { type: string; content?: string; title?: string
  * Runs the headless adapter main loop.
  *
  * @param schema - Headless adapter configuration
+ * @param verbose - Whether to show debug output
  */
-const runAdapter = async (schema: HeadlessAdapterConfig): Promise<void> => {
-  const sessions = createSessionManager({ schema })
+const runAdapter = async (schema: HeadlessAdapterConfig, verbose = false): Promise<void> => {
+  const sessions = createSessionManager({ schema, verbose })
   const handlers = createHandlers(schema, sessions)
 
   // Method handlers (requests expect responses)
@@ -349,6 +350,7 @@ export const headless = async (args: string[]): Promise<void> => {
     args,
     options: {
       schema: { type: 'string', short: 's' },
+      verbose: { type: 'boolean', short: 'v' },
       help: { type: 'boolean', short: 'h' },
     },
     allowPositionals: false,
@@ -357,10 +359,11 @@ export const headless = async (args: string[]): Promise<void> => {
   if (values.help) {
     // biome-ignore lint/suspicious/noConsole: CLI help output
     console.log(`
-Usage: acp-harness headless --schema <path>
+Usage: acp-harness headless --schema <path> [--verbose]
 
 Arguments:
   -s, --schema    Path to headless adapter schema (JSON)
+  -v, --verbose   Show constructed commands (for debugging)
   -h, --help      Show this help message
 
 Description:
@@ -421,7 +424,7 @@ Examples:
   }
 
   // Run the adapter
-  await runAdapter(schema)
+  await runAdapter(schema, values.verbose ?? false)
 }
 
 // Allow direct execution
