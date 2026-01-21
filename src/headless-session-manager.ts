@@ -164,11 +164,10 @@ export const createSessionManager = (config: SessionManagerConfig) => {
         stderr: 'inherit',
       })
 
-      // If using stdin, write the prompt and close stdin
-      if (schema.prompt.stdin && session.process.stdin) {
-        const writer = session.process.stdin.getWriter()
-        await writer.write(new TextEncoder().encode(`${promptText}\n`))
-        await writer.close()
+      // If using stdin, write the prompt
+      if (schema.prompt.stdin && session.process.stdin && typeof session.process.stdin !== 'number') {
+        session.process.stdin.write(`${promptText}\n`)
+        session.process.stdin.flush()
       }
     } else {
       // Subsequent turns: spawn new process with resume flag
@@ -182,11 +181,10 @@ export const createSessionManager = (config: SessionManagerConfig) => {
         stderr: 'inherit',
       })
 
-      // If using stdin, write the prompt and close stdin
-      if (schema.prompt.stdin && session.process.stdin) {
-        const writer = session.process.stdin.getWriter()
-        await writer.write(new TextEncoder().encode(`${promptText}\n`))
-        await writer.close()
+      // If using stdin, write the prompt
+      if (schema.prompt.stdin && session.process.stdin && typeof session.process.stdin !== 'number') {
+        session.process.stdin.write(`${promptText}\n`)
+        session.process.stdin.flush()
       }
     }
 
@@ -215,11 +213,10 @@ export const createSessionManager = (config: SessionManagerConfig) => {
       stderr: 'inherit',
     })
 
-    // If using stdin, write the prompt and close stdin
-    if (schema.prompt.stdin && session.process.stdin) {
-      const writer = session.process.stdin.getWriter()
-      await writer.write(new TextEncoder().encode(`${fullPrompt}\n`))
-      await writer.close()
+    // If using stdin, write the prompt
+    if (schema.prompt.stdin && session.process.stdin && typeof session.process.stdin !== 'number') {
+      session.process.stdin.write(`${fullPrompt}\n`)
+      session.process.stdin.flush()
     }
 
     const result = await collectOutput(session, outputParser, onUpdate, timeout)
