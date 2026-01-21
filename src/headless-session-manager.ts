@@ -386,6 +386,7 @@ const collectOutput = async (
   const updates: ParsedUpdate[] = []
   let output = ''
   let cliSessionId: string | undefined
+  const accumulatedMessages: string[] = []
 
   const stdout = session.process?.stdout
   if (!stdout || typeof stdout === 'number') {
@@ -426,6 +427,11 @@ const collectOutput = async (
               updates.push(singleUpdate)
               onUpdate?.(singleUpdate)
 
+              // Accumulate message content for fallback
+              if (singleUpdate.type === 'message' && singleUpdate.content) {
+                accumulatedMessages.push(singleUpdate.content)
+              }
+
               // Extract CLI session ID if available
               if (!cliSessionId && singleUpdate.raw && typeof singleUpdate.raw === 'object') {
                 const raw = singleUpdate.raw as Record<string, unknown>
@@ -450,6 +456,11 @@ const collectOutput = async (
     await Promise.race([readLoop(), timeoutPromise])
   } finally {
     reader.releaseLock()
+  }
+
+  // Fallback: if result contentPath didn't yield output, use accumulated messages
+  if (!output && accumulatedMessages.length > 0) {
+    output = accumulatedMessages.join('\n')
   }
 
   return {
