@@ -15,7 +15,7 @@
  */
 
 // Commands
-export { compare } from './compare.ts'
+export { type CompareStrategy, compare, type ExtendedCompareConfig, runCompare } from './compare.ts'
 export { extract } from './extract.ts'
 export { format } from './format.ts'
 export { grade } from './grade.ts'
@@ -27,6 +27,7 @@ export type {
   ComparisonGraderResult,
   ComparisonRanking,
   ComparisonResult,
+  ComparisonRunData,
   ExtractConfig,
   ExtractedResult,
   FormatConfig,

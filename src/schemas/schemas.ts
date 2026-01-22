@@ -556,3 +556,212 @@ export const ValidationResultSchema = z.object({
 
 /** Validation result type */
 export type ValidationResult = z.infer<typeof ValidationResultSchema>
+
+// ============================================================================
+// Comparison Report Schemas
+// ============================================================================
+
+/**
+ * Score distribution histogram for quality analysis.
+ *
+ * @remarks
+ * Buckets divide the 0-1 score range into 5 equal bins.
+ */
+export const ScoreDistributionSchema = z.object({
+  '0.0-0.2': z.number(),
+  '0.2-0.4': z.number(),
+  '0.4-0.6': z.number(),
+  '0.6-0.8': z.number(),
+  '0.8-1.0': z.number(),
+})
+
+/** Score distribution type */
+export type ScoreDistribution = z.infer<typeof ScoreDistributionSchema>
+
+/**
+ * Quality metrics for a single run in comparison.
+ */
+export const QualityMetricsSchema = z.object({
+  /** Mean grader score (0-1) */
+  avgScore: z.number(),
+  /** Percentage of pass=true results */
+  passRate: z.number(),
+  /** Count of passing results */
+  passCount: z.number(),
+  /** Count of failing results */
+  failCount: z.number(),
+  /** Score distribution histogram */
+  scoreDistribution: ScoreDistributionSchema,
+})
+
+/** Quality metrics type */
+export type QualityMetrics = z.infer<typeof QualityMetricsSchema>
+
+/**
+ * Latency statistics for performance analysis.
+ */
+export const LatencyStatsSchema = z.object({
+  /** 50th percentile (median) in milliseconds */
+  p50: z.number(),
+  /** 90th percentile in milliseconds */
+  p90: z.number(),
+  /** 99th percentile in milliseconds */
+  p99: z.number(),
+  /** Mean latency in milliseconds */
+  mean: z.number(),
+  /** Minimum latency in milliseconds */
+  min: z.number(),
+  /** Maximum latency in milliseconds */
+  max: z.number(),
+})
+
+/** Latency stats type */
+export type LatencyStats = z.infer<typeof LatencyStatsSchema>
+
+/**
+ * Performance metrics for a single run in comparison.
+ */
+export const PerformanceMetricsSchema = z.object({
+  /** End-to-end latency statistics */
+  latency: LatencyStatsSchema,
+  /** Time to first response statistics (optional, not all adapters support) */
+  firstResponse: LatencyStatsSchema.optional(),
+  /** Sum of all run durations in milliseconds */
+  totalDuration: z.number(),
+})
+
+/** Performance metrics type */
+export type PerformanceMetrics = z.infer<typeof PerformanceMetricsSchema>
+
+/**
+ * Reliability metrics for a single run in comparison.
+ */
+export const ReliabilityMetricsSchema = z.object({
+  /** Count of runs with toolErrors=true */
+  toolErrors: z.number(),
+  /** Percentage of runs with tool errors */
+  toolErrorRate: z.number(),
+  /** Count of runs that hit timeout */
+  timeouts: z.number(),
+  /** Percentage of runs that hit timeout */
+  timeoutRate: z.number(),
+  /** Percentage of runs that completed successfully */
+  completionRate: z.number(),
+})
+
+/** Reliability metrics type */
+export type ReliabilityMetrics = z.infer<typeof ReliabilityMetricsSchema>
+
+/**
+ * Trajectory info for a single run in comparison.
+ */
+export const TrajectoryInfoSchema = z.object({
+  /** Trajectory richness level */
+  richness: TrajectoryRichnessSchema,
+  /** Average trajectory steps per run */
+  avgStepCount: z.number(),
+})
+
+/** Trajectory info type */
+export type TrajectoryInfo = z.infer<typeof TrajectoryInfoSchema>
+
+/**
+ * Per-prompt comparison entry for head-to-head drill-down.
+ */
+export const PromptComparisonSchema = z.object({
+  /** Prompt identifier */
+  id: z.string(),
+  /** Run label of the winner, or null if tie */
+  winner: z.string().nullable(),
+  /** Scores by run label */
+  scores: z.record(z.string(), z.number()),
+  /** Latencies by run label in milliseconds */
+  latencies: z.record(z.string(), z.number()),
+  /** Whether each run had errors */
+  hadErrors: z.record(z.string(), z.boolean()),
+})
+
+/** Prompt comparison type */
+export type PromptComparison = z.infer<typeof PromptComparisonSchema>
+
+/**
+ * Pairwise win/loss/tie statistics between two runs.
+ */
+export const PairwiseComparisonSchema = z.object({
+  /** First run label */
+  runA: z.string(),
+  /** Second run label */
+  runB: z.string(),
+  /** Number of prompts where A won */
+  aWins: z.number(),
+  /** Number of prompts where B won */
+  bWins: z.number(),
+  /** Number of prompts where A and B tied */
+  ties: z.number(),
+})
+
+/** Pairwise comparison type */
+export type PairwiseComparison = z.infer<typeof PairwiseComparisonSchema>
+
+/**
+ * Head-to-head comparison section.
+ */
+export const HeadToHeadSchema = z.object({
+  /** Per-prompt breakdown for drill-down */
+  prompts: z.array(PromptComparisonSchema),
+  /** Pairwise win rates between runs */
+  pairwise: z.array(PairwiseComparisonSchema),
+})
+
+/** Head-to-head type */
+export type HeadToHead = z.infer<typeof HeadToHeadSchema>
+
+/**
+ * Metadata for the comparison report.
+ */
+export const ComparisonMetaSchema = z.object({
+  /** ISO timestamp when report was generated */
+  generatedAt: z.string(),
+  /** Run labels included in comparison */
+  runs: z.array(z.string()),
+  /** Total prompts compared */
+  promptCount: z.number(),
+  /** Prompts where all runs completed */
+  promptsWithAllRuns: z.number(),
+})
+
+/** Comparison meta type */
+export type ComparisonMeta = z.infer<typeof ComparisonMetaSchema>
+
+/**
+ * Holistic comparison report schema.
+ *
+ * @remarks
+ * Aggregates comparison output across all dimensions:
+ * - Quality: pass rates, scores, distributions
+ * - Performance: latency percentiles
+ * - Reliability: error rates, completion rates
+ * - Head-to-head: per-prompt winners, pairwise stats
+ *
+ * Note: Tool usage analysis is NOT included because adapter formats vary.
+ * Different adapters provide different `trajectoryRichness` levels and
+ * the `tool_call.name` field often contains tool use IDs rather than
+ * human-readable names.
+ */
+export const ComparisonReportSchema = z.object({
+  /** Report metadata */
+  meta: ComparisonMetaSchema,
+  /** Quality metrics by run label */
+  quality: z.record(z.string(), QualityMetricsSchema),
+  /** Performance metrics by run label */
+  performance: z.record(z.string(), PerformanceMetricsSchema),
+  /** Reliability metrics by run label */
+  reliability: z.record(z.string(), ReliabilityMetricsSchema),
+  /** Trajectory info by run label */
+  trajectoryInfo: z.record(z.string(), TrajectoryInfoSchema),
+  /** Head-to-head comparison details */
+  headToHead: HeadToHeadSchema,
+})
+
+/** Comparison report type */
+export type ComparisonReport = z.infer<typeof ComparisonReportSchema>

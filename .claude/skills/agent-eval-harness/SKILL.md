@@ -76,7 +76,7 @@ flowchart LR
 | `extract` | raw.jsonl + schema | extracted.jsonl | Parse trajectories |
 | `grade` | extracted.jsonl + grader | graded.jsonl | Apply grader scoring |
 | `format` | results.jsonl | jsonl/markdown/csv | Convert output format |
-| `compare` | multiple results.jsonl | comparison.jsonl | Compare multiple runs |
+| `compare` | multiple results.jsonl | comparison.json | Compare runs (aggregate report) |
 
 All commands support optional `--grader ./grader.ts` for scoring.
 
@@ -318,18 +318,31 @@ bunx @plaited/agent-eval-harness format results.jsonl --style jsonl
 
 ### Compare Command
 
-Compare multiple runs of the same prompts:
+Compare multiple runs of the same prompts and generate aggregate reports:
 
 ```bash
-# Compare multiple result files
-bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl run3.jsonl \
-  --grader ./compare-grader.ts -o comparison.jsonl
+# Default: weighted strategy with JSON output
+bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl -o comparison.json
+
+# Statistical significance strategy
+bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl --strategy statistical -o comparison.json
+
+# Custom weights via environment variables
+COMPARE_QUALITY=0.7 COMPARE_LATENCY=0.2 COMPARE_RELIABILITY=0.1 \
+  bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl -o comparison.json
+
+# Markdown report format
+bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl --format markdown -o report.md
+
+# Custom grader (LLM-as-Judge)
+bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl \
+  --strategy custom --grader ./my-llm-judge.ts -o comparison.json
 
 # With explicit labels
 bunx @plaited/agent-eval-harness compare \
   --run "with-mcp:results-mcp.jsonl" \
   --run "vanilla:results-vanilla.jsonl" \
-  --grader ./compare-grader.ts
+  -o comparison.json
 ```
 
 **Use cases for compare:**
@@ -338,13 +351,49 @@ bunx @plaited/agent-eval-harness compare \
 - Same agent, different model versions
 - Different agents entirely
 
+### Built-in Comparison Strategies
+
+| Strategy | Description | When to Use |
+|----------|-------------|-------------|
+| `weighted` (default) | Configurable weights for quality, latency, reliability | Quick comparisons |
+| `statistical` | Bootstrap sampling for confidence intervals | A/B testing with significance |
+| `custom` | Your own LLM-as-Judge or logic-based grader | Semantic evaluation |
+
+### Comparison Report Output
+
+The compare command outputs a holistic `ComparisonReport` JSON:
+
+```json
+{
+  "meta": { "generatedAt": "...", "runs": ["baseline", "variant"], "promptCount": 100 },
+  "quality": { "baseline": { "avgScore": 0.85, "passRate": 0.82 }, "variant": { ... } },
+  "performance": { "baseline": { "latency": { "p50": 1200, "p90": 3400 } }, ... },
+  "reliability": { "baseline": { "toolErrors": 5, "completionRate": 0.99 }, ... },
+  "headToHead": { "pairwise": [{ "runA": "baseline", "runB": "variant", "aWins": 35, "bWins": 55 }] }
+}
+```
+
+### LLM-as-Judge Templates
+
+Export grader templates for customization:
+
+```bash
+# Export Google GenAI template
+bunx @plaited/agent-eval-harness schemas --template llm-judge-gemini -o my-grader.ts
+
+# Export Anthropic template
+bunx @plaited/agent-eval-harness schemas --template llm-judge-anthropic -o my-grader.ts
+```
+
+See [comparison-graders.md](references/comparison-graders.md) for complete comparison grader documentation.
+
 ### Comparison Grader Interface
 
 ```typescript
 import type { ComparisonGrader } from '@plaited/agent-eval-harness/pipeline'
 
 export const grade: ComparisonGrader = async ({ id, input, hint, runs }) => {
-  // runs is Record<string, { output: string; trajectory?: TrajectoryStep[] }>
+  // runs is Record<string, { output, trajectory?, score?, duration?, toolErrors? }>
   // Return rankings from best to worst
   return {
     rankings: [
@@ -649,7 +698,9 @@ See [downstream.md](references/downstream.md) for integration patterns with Brai
 | [output-formats.md](references/output-formats.md) | JSONL schemas, command details |
 | [downstream.md](references/downstream.md) | Integration patterns (Braintrust, jq, custom scorers) |
 | [graders.md](references/graders.md) | Polyglot grader documentation (TypeScript, Python, shell) |
-| [eval-concepts.md](references/eval-concepts.md) | Evaluation concepts (pass@k, pass^k, calibration) |
+| [comparison-graders.md](references/comparison-graders.md) | Comparison strategies (weighted, statistical, LLM-as-Judge) |
+| [calibration.md](references/calibration.md) | Grader calibration workflow |
+| [eval-concepts.md](references/eval-concepts.md) | Evaluation concepts (pass@k, pass^k) |
 | [docker-evals.md](references/docker-evals.md) | Docker setup, debugging, CI integration |
 
 ## Related
