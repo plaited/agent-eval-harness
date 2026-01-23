@@ -230,6 +230,7 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
           output,
           hint: promptCase.hint,
           trajectory,
+          metadata: promptCase.metadata,
         })
       }
 

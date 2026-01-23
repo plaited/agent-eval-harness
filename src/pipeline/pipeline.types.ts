@@ -26,6 +26,8 @@ export type RawOutput = {
   input: string | string[]
   /** Grader context hint */
   hint?: string
+  /** Optional metadata from original prompt */
+  metadata?: Record<string, unknown>
   /** Raw output lines from the agent (JSON strings) */
   rawLines: string[]
   /** Timing metadata */
@@ -58,6 +60,8 @@ export type ExtractedResult = {
   trajectory: TrajectoryStep[]
   /** Whether tool errors were detected */
   toolErrors: boolean
+  /** Optional metadata from original prompt */
+  metadata?: Record<string, unknown>
   /** Timing metadata */
   timing: {
     start: number
@@ -194,6 +198,8 @@ export type ComparisonGraderInput = {
   input: string | string[]
   /** Grader context hint */
   hint?: string
+  /** Optional metadata from original prompt */
+  metadata?: Record<string, unknown>
   /** Results keyed by run label */
   runs: Record<string, ComparisonRunData>
 }

@@ -71,6 +71,7 @@ export const runValidateRefs = async (config: ValidateRefsConfig): Promise<Valid
       output: prompt.reference as string,
       hint: prompt.hint,
       trajectory: [], // No trajectory for reference validation
+      metadata: prompt.metadata,
     })
 
     results.push({

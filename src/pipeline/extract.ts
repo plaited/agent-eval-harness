@@ -91,6 +91,7 @@ const extractFromRaw = (rawOutput: RawOutput, parser: ReturnType<typeof createOu
     output: finalOutput,
     trajectory,
     toolErrors: toolErrors || !!rawOutput.error,
+    metadata: rawOutput.metadata,
     timing: rawOutput.timing,
     ...(rawOutput.error && { error: rawOutput.error }),
   }

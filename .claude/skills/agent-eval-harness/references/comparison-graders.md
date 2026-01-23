@@ -95,6 +95,7 @@ type ComparisonGraderInput = {
   id: string                    // Prompt identifier
   input: string | string[]      // Original prompt
   hint?: string                 // Grader context
+  metadata?: Record<string, unknown> // Optional metadata from prompt
   runs: Record<string, {
     output: string              // Agent output
     trajectory?: TrajectoryStep[]

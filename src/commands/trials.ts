@@ -216,6 +216,7 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
             output,
             hint: promptCase.hint,
             trajectory,
+            metadata: promptCase.metadata,
           })
           entry.pass = graderResult.pass
           entry.score = graderResult.score

@@ -218,6 +218,7 @@ export const runCalibrate = async (config: CalibrateConfig): Promise<Calibration
         output: result.output,
         hint: result.hint,
         trajectory: result.trajectory,
+        metadata: result.metadata,
       })
     }
 

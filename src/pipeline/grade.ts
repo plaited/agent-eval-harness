@@ -51,6 +51,7 @@ export const runGrade = async (
       output: extracted.output,
       hint: extracted.hint,
       trajectory: extracted.trajectory,
+      metadata: extracted.metadata,
     })
 
     const graded: GradedResult = {

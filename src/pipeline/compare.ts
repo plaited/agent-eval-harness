@@ -289,6 +289,7 @@ export const runCompare = async (config: ExtendedCompareConfig): Promise<Compari
     const runsData: ComparisonGraderInput['runs'] = {}
     let input: string | string[] = ''
     let hint: string | undefined
+    let metadata: Record<string, unknown> | undefined
 
     for (const [label, labelResults] of Object.entries(runResults)) {
       const result = labelResults.find((r) => r.id === promptId)
@@ -301,10 +302,11 @@ export const runCompare = async (config: ExtendedCompareConfig): Promise<Compari
           ...(result.timing && { duration: result.timing.total }),
           ...(result.toolErrors !== undefined && { toolErrors: result.toolErrors }),
         }
-        // Use first found input/hint as the reference
+        // Use first found input/hint/metadata as the reference
         if (!input) {
           input = result.input
           hint = result.hint
+          metadata = result.metadata
         }
       }
     }
@@ -320,6 +322,7 @@ export const runCompare = async (config: ExtendedCompareConfig): Promise<Compari
       id: promptId,
       input,
       hint,
+      metadata,
       runs: runsData,
     }
 

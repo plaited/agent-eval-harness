@@ -229,12 +229,14 @@ export type GraderResult = z.infer<typeof GraderResultSchema>
  * User-provided graders implement this interface to score agent outputs.
  * - `input` is the original prompt (string or array for multi-turn)
  * - `hint` provides grader context (renamed from `expected`)
+ * - `metadata` contains arbitrary key-value pairs from the original prompt JSONL
  */
 export type Grader = (params: {
   input: string | string[]
   output: string
   hint?: string
   trajectory?: TrajectoryStep[]
+  metadata?: Record<string, unknown>
 }) => Promise<GraderResult>
 
 // ============================================================================

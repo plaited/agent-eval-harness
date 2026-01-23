@@ -40,12 +40,20 @@ const resolvePath = (path: string): string => {
 // Executable Grader
 // ============================================================================
 
-/** Input format for executable graders (stdin JSON) */
+/**
+ * Input format for executable graders (stdin JSON).
+ *
+ * @remarks
+ * The metadata field contains arbitrary key-value pairs from the original
+ * prompt JSONL (e.g., category, difficulty, tags). Use this to implement
+ * category-specific grading logic or filter calibration samples.
+ */
 type ExecGraderInput = {
   input: string | string[]
   output: string
   hint?: string
   trajectory?: TrajectoryStep[]
+  metadata?: Record<string, unknown>
 }
 
 /**

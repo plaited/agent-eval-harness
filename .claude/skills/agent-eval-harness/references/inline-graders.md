@@ -12,6 +12,7 @@ type GraderInput = {
   output: string                // Agent output
   hint?: string                 // Grader context/expectation
   trajectory?: TrajectoryStep[] // Execution trace
+  metadata?: Record<string, unknown> // Optional metadata from prompt
 }
 
 type GraderResult = {
@@ -39,7 +40,7 @@ agent-eval-harness schemas GraderResult --json -o grader-result.json
 // my-grader.ts
 import type { Grader } from '@plaited/agent-eval-harness/schemas'
 
-export const grade: Grader = async ({ input, output, hint, trajectory }) => {
+export const grade: Grader = async ({ input, output, hint, trajectory, metadata }) => {
   // Your scoring logic here
   const pass = evaluateOutput(output, hint)
 
@@ -149,6 +150,42 @@ export const grade: Grader = async ({ output, hint, trajectory }) => {
 }
 ```
 
+### Metadata-Based Grading
+
+Use metadata for category-specific scoring logic:
+
+```typescript
+export const grade: Grader = async ({ output, hint, metadata }) => {
+  const category = (metadata?.category as string) ?? 'general'
+  const difficulty = (metadata?.difficulty as string) ?? 'medium'
+
+  // Apply different criteria based on category
+  if (category === 'code') {
+    // Code tasks require syntax validation
+    const hasCodeBlock = /```[\s\S]*?```/.test(output)
+    if (!hasCodeBlock) {
+      return { pass: false, score: 0.0, reasoning: 'Code category requires code block' }
+    }
+  } else if (category === 'web-search') {
+    // Web search tasks require sources
+    const hasSources = /source:/i.test(output) || /https?:\/\//.test(output)
+    if (!hasSources) {
+      return { pass: false, score: 0.5, reasoning: 'Web search should cite sources' }
+    }
+  }
+
+  // Adjust score threshold by difficulty
+  const baseScore = hint ? (output.toLowerCase().includes(hint.toLowerCase()) ? 1.0 : 0.0) : 1.0
+  const threshold = difficulty === 'hard' ? 0.9 : difficulty === 'easy' ? 0.6 : 0.7
+
+  return {
+    pass: baseScore >= threshold,
+    score: baseScore,
+    reasoning: `Category: ${category}, Difficulty: ${difficulty}`
+  }
+}
+```
+
 ### Trajectory-Based Grading
 
 Analyze the execution path, not just the output:
@@ -235,7 +272,8 @@ For non-JavaScript graders, use stdin/stdout JSON:
   "input": "Find the CEO of Anthropic",
   "output": "The CEO of Anthropic is Dario Amodei.",
   "hint": "Dario Amodei",
-  "trajectory": [...]
+  "trajectory": [...],
+  "metadata": {"category": "web-search", "difficulty": "easy"}
 }
 ```
 
