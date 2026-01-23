@@ -24,7 +24,7 @@
 
 import { basename, extname } from 'node:path'
 import { parseArgs } from 'node:util'
-import { loadResults, logProgress, writeOutput } from '../core.ts'
+import { buildResultsIndex, logProgress, writeOutput } from '../core.ts'
 import { grade as statisticalGrade } from '../graders/compare-statistical.ts'
 import { grade as weightedGrade } from '../graders/compare-weighted.ts'
 import type {
@@ -306,18 +306,19 @@ export const runCompare = async (config: ExtendedCompareConfig): Promise<Compari
     logProgress(`  - ${run.label}: ${run.path}`, progress)
   }
 
-  // Load all runs
-  const runResults: Record<string, CaptureResult[]> = {}
+  // Load all runs using indexed streaming (memory-efficient for large files)
+  // Uses Map<id, result> instead of arrays for O(1) lookups
+  const runResults: Record<string, Map<string, CaptureResult>> = {}
   for (const run of runs) {
     logProgress(`Loading ${run.label}...`, progress)
-    runResults[run.label] = await loadResults(run.path)
+    runResults[run.label] = await buildResultsIndex(run.path)
   }
 
-  // Build map of prompt IDs to runs
+  // Build set of all prompt IDs across runs
   const promptIds = new Set<string>()
-  for (const results of Object.values(runResults)) {
-    for (const result of results) {
-      promptIds.add(result.id)
+  for (const resultsMap of Object.values(runResults)) {
+    for (const id of resultsMap.keys()) {
+      promptIds.add(id)
     }
   }
 
@@ -336,8 +337,8 @@ export const runCompare = async (config: ExtendedCompareConfig): Promise<Compari
     let hint: string | undefined
     let metadata: Record<string, unknown> | undefined
 
-    for (const [label, labelResults] of Object.entries(runResults)) {
-      const result = labelResults.find((r) => r.id === promptId)
+    for (const [label, resultsMap] of Object.entries(runResults)) {
+      const result = resultsMap.get(promptId)
       if (result) {
         runsData[label] = {
           output: result.output,
@@ -415,10 +416,11 @@ export const runCompare = async (config: ExtendedCompareConfig): Promise<Compari
   // Compute aggregate metrics
   const runLabels = runs.map((r) => r.label)
 
-  // Quality metrics
+  // Quality metrics (iterate over Map values)
   const quality: Record<string, QualityMetrics> = {}
   for (const label of runLabels) {
-    const results = runResults[label] ?? []
+    const resultsMap = runResults[label] ?? new Map()
+    const results = [...resultsMap.values()]
     const scores = results.map((r) => r.score?.score ?? 0)
     const passes = results.filter((r) => r.score?.pass === true).length
     const fails = results.length - passes
@@ -435,7 +437,8 @@ export const runCompare = async (config: ExtendedCompareConfig): Promise<Compari
   // Performance metrics
   const performance: Record<string, PerformanceMetrics> = {}
   for (const label of runLabels) {
-    const results = runResults[label] ?? []
+    const resultsMap = runResults[label] ?? new Map()
+    const results = [...resultsMap.values()]
     const durations = results.map((r) => r.timing?.total ?? 0)
     const firstResponses = results.map((r) => r.timing?.firstResponse).filter((v): v is number => v !== undefined)
 
@@ -449,9 +452,12 @@ export const runCompare = async (config: ExtendedCompareConfig): Promise<Compari
   // Reliability metrics
   const reliability: Record<string, ReliabilityMetrics> = {}
   for (const label of runLabels) {
-    const results = runResults[label] ?? []
+    const resultsMap = runResults[label] ?? new Map()
+    const results = [...resultsMap.values()]
     const toolErrorCount = results.filter((r) => r.toolErrors === true).length
-    const timeoutCount = results.filter((r) => r.errors?.some((e) => e.toLowerCase().includes('timeout'))).length
+    const timeoutCount = results.filter((r) =>
+      r.errors?.some((e: string) => e.toLowerCase().includes('timeout')),
+    ).length
     const completedCount = results.filter((r) => r.output && !r.errors?.length).length
 
     reliability[label] = {
@@ -466,7 +472,8 @@ export const runCompare = async (config: ExtendedCompareConfig): Promise<Compari
   // Trajectory info
   const trajectoryInfo: Record<string, TrajectoryInfo> = {}
   for (const label of runLabels) {
-    const results = runResults[label] ?? []
+    const resultsMap = runResults[label] ?? new Map()
+    const results = [...resultsMap.values()]
     const stepCounts = results.map((r) => r.trajectory?.length ?? 0)
     const avgStepCount = stepCounts.length > 0 ? stepCounts.reduce((a, b) => a + b, 0) / stepCounts.length : 0
 
