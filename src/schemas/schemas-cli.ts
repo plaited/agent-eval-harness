@@ -36,22 +36,6 @@ const SCHEMA_REGISTRY: Record<string, z.ZodSchema> = {
 }
 
 // ============================================================================
-// Template Registry
-// ============================================================================
-
-/** Available templates for export */
-const TEMPLATE_REGISTRY: Record<string, string> = {
-  'llm-judge-gemini': 'compare-llm-judge-gemini.ts',
-  'llm-judge-anthropic': 'compare-llm-judge-anthropic.ts',
-}
-
-/** Template descriptions for help */
-const TEMPLATE_DESCRIPTIONS: Record<string, string> = {
-  'llm-judge-gemini': 'LLM-as-Judge grader using Google GenAI (requires @google/genai)',
-  'llm-judge-anthropic': 'LLM-as-Judge grader using Anthropic Claude (requires @anthropic-ai/sdk)',
-}
-
-// ============================================================================
 // Types
 // ============================================================================
 
@@ -67,10 +51,6 @@ export type SchemasConfig = {
   split?: boolean
   /** List available schemas */
   list?: boolean
-  /** Template name to export */
-  template?: string
-  /** List available templates */
-  listTemplates?: boolean
 }
 
 // ============================================================================
@@ -108,66 +88,13 @@ const toJsonSchema = (schema: z.ZodSchema, name: string): object => {
 // ============================================================================
 
 /**
- * Get the assets directory path.
- *
- * @returns Path to assets/templates directory
- */
-const getTemplatesDir = (): string => {
-  // When running from source, templates are in assets/templates
-  // relative to the package root
-  const packageRoot = new URL('../..', import.meta.url).pathname
-  return `${packageRoot}assets/templates`
-}
-
-/**
  * Execute schemas command with configuration object.
  *
  * @param config - Schemas configuration
- * @returns Generated JSON schemas or template content
+ * @returns Generated JSON schemas
  */
-export const runSchemas = async (config: SchemasConfig): Promise<Record<string, object> | string[] | string> => {
-  const { schemaName, outputPath, json = false, split = false, list = false, template, listTemplates = false } = config
-
-  // List templates mode
-  if (listTemplates) {
-    // biome-ignore lint/suspicious/noConsole: CLI stdout output
-    console.log('Available templates:')
-    for (const [name, desc] of Object.entries(TEMPLATE_DESCRIPTIONS)) {
-      // biome-ignore lint/suspicious/noConsole: CLI stdout output
-      console.log(`  - ${name}: ${desc}`)
-    }
-    return Object.keys(TEMPLATE_REGISTRY)
-  }
-
-  // Template export mode
-  if (template) {
-    const templateFile = TEMPLATE_REGISTRY[template]
-    if (!templateFile) {
-      console.error(`Error: Unknown template '${template}'`)
-      console.error(`Available: ${Object.keys(TEMPLATE_REGISTRY).join(', ')}`)
-      process.exit(1)
-    }
-
-    const templatesDir = getTemplatesDir()
-    const templatePath = `${templatesDir}/${templateFile}`
-
-    try {
-      const content = await Bun.file(templatePath).text()
-
-      if (outputPath) {
-        await Bun.write(resolvePath(outputPath), content)
-        console.error(`Template written to: ${outputPath}`)
-      } else {
-        // biome-ignore lint/suspicious/noConsole: CLI stdout output
-        console.log(content)
-      }
-
-      return content
-    } catch (error) {
-      console.error(`Error reading template: ${error instanceof Error ? error.message : 'unknown error'}`)
-      process.exit(1)
-    }
-  }
+export const runSchemas = async (config: SchemasConfig): Promise<Record<string, object> | string[]> => {
+  const { schemaName, outputPath, json = false, split = false, list = false } = config
 
   // List mode
   if (list) {
@@ -260,8 +187,6 @@ export const schemasCli = async (args: string[]): Promise<void> => {
       json: { type: 'boolean', short: 'j', default: false },
       split: { type: 'boolean', short: 's', default: false },
       list: { type: 'boolean', short: 'l', default: false },
-      template: { type: 'string', short: 't' },
-      'list-templates': { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h' },
     },
     allowPositionals: true,
@@ -280,18 +205,12 @@ Options:
   -j, --json        Export as JSON (default: list names)
   -s, --split       Split into separate files (requires --output dir)
   -l, --list        List available schemas
-  -t, --template    Export grader template (use --list-templates to see options)
-  --list-templates  List available templates
   -h, --help        Show this help message
 
 Available Schemas:
   PromptCase, GraderResult, TrajectoryStep, CaptureResult, SummaryResult,
   TrialEntry, TrialResult, CalibrationSample, BalanceAnalysis, ValidationResult,
   McpServerConfig, Session, JsonRpcRequest, JsonRpcResponse, JsonRpcError
-
-Available Templates:
-  llm-judge-gemini      LLM-as-Judge using Google GenAI
-  llm-judge-anthropic   LLM-as-Judge using Anthropic Claude
 
 Examples:
   # List available schemas
@@ -306,13 +225,6 @@ Examples:
 
   # Export all schemas as separate files
   agent-eval-harness schemas --json --split -o schemas/
-
-  # Export LLM-as-Judge template
-  agent-eval-harness schemas --template llm-judge-gemini -o my-grader.ts
-  agent-eval-harness schemas --template llm-judge-anthropic > my-grader.ts
-
-  # List available templates
-  agent-eval-harness schemas --list-templates
 `)
     return
   }
@@ -323,7 +235,5 @@ Examples:
     json: values.json ?? false,
     split: values.split ?? false,
     list: values.list ?? false,
-    template: values.template,
-    listTemplates: values['list-templates'] ?? false,
   })
 }

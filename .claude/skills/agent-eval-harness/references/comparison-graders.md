@@ -6,7 +6,7 @@ The `compare` command supports three grading strategies:
 
 1. **Weighted** (default) - Configurable weights for quality, latency, reliability
 2. **Statistical** - Bootstrap sampling for confidence intervals
-3. **Custom** - Your own LLM-as-Judge or logic-based grader
+3. **Custom** - Your own logic-based or LLM-as-Judge grader
 
 ## Built-in Strategy: Weighted
 
@@ -82,76 +82,14 @@ Or:
 }
 ```
 
-## Custom Graders: LLM-as-Judge
+## Custom Graders
 
-For semantic evaluation, use an LLM to compare runs holistically.
+For specialized comparison logic or LLM-as-Judge evaluation.
 
-### Template Setup
-
-Export a template and customize:
-
-```bash
-# Google GenAI template
-agent-eval-harness schemas --template llm-judge-gemini -o my-grader.ts
-
-# Anthropic Claude template
-agent-eval-harness schemas --template llm-judge-anthropic -o my-grader.ts
-```
-
-### Install Dependencies
-
-```bash
-# For Gemini
-bun add @google/genai
-export GEMINI_API_KEY=your-api-key
-
-# For Anthropic
-bun add @anthropic-ai/sdk
-export ANTHROPIC_API_KEY=your-api-key
-```
-
-### Usage
-
-```bash
-agent-eval-harness compare a.jsonl b.jsonl \
-  --strategy custom \
-  --grader ./my-grader.ts \
-  -o comparison.json
-```
-
-### Customizing the Prompt
-
-Edit the `buildPrompt` function in the template:
+### Grader Interface
 
 ```typescript
-const buildPrompt = ({ id, input, hint, runs }: ComparisonGraderInput): string => {
-  // Customize evaluation criteria here
-  return `You are evaluating agent runs...
-
-## Evaluation Criteria
-1. **Correctness** - Does it solve the task?
-2. **Efficiency** - Minimal tool calls?
-3. **Your Custom Criterion** - Add your own...
-
-...`
-}
-```
-
-### LLM Provider Comparison
-
-| Provider | Model | Context | Best For |
-|----------|-------|---------|----------|
-| Google GenAI | gemini-2.5-flash | 1M tokens | Large trajectories, cost-effective |
-| Google GenAI | gemini-2.5-pro | 1M tokens | Complex reasoning |
-| Anthropic | claude-sonnet-4 | 200K tokens | Balanced speed/quality |
-| Anthropic | claude-opus-4 | 200K tokens | Maximum capability |
-
-## Grader Interface
-
-All comparison graders implement:
-
-```typescript
-type ComparisonGrader = (params: ComparisonGraderInput) => Promise<ComparisonGraderResult>
+import type { ComparisonGrader } from '@plaited/agent-eval-harness/pipeline'
 
 type ComparisonGraderInput = {
   id: string                    // Prompt identifier
@@ -176,15 +114,105 @@ type ComparisonGraderResult = {
 }
 ```
 
-## Strategy Selection Guide
+### Building a Custom Grader
 
-| Use Case | Recommended Strategy |
-|----------|---------------------|
-| Quick comparison | `weighted` (default) |
-| A/B test with significance | `statistical` |
-| Semantic quality evaluation | `custom` (LLM-as-Judge) |
-| Complex multi-criteria scoring | `custom` (logic-based) |
-| Tool usage analysis | `custom` (see below) |
+**Step 1: Create the grader file**
+
+```typescript
+// my-compare-grader.ts
+import type { ComparisonGrader } from '@plaited/agent-eval-harness/pipeline'
+
+export const grade: ComparisonGrader = async ({ id, input, hint, runs }) => {
+  // Grade each run in isolation first
+  const scored = await Promise.all(
+    Object.entries(runs).map(async ([label, run]) => {
+      const score = await scoreRun(run, hint)
+      return { label, score }
+    })
+  )
+
+  // Sort by score descending
+  const sorted = scored.sort((a, b) => b.score - a.score)
+
+  return {
+    rankings: sorted.map((r, i) => ({
+      run: r.label,
+      rank: i + 1,
+      score: r.score
+    })),
+    reasoning: `Ranked by scoring criteria`
+  }
+}
+
+const scoreRun = async (run: { output: string; toolErrors?: boolean }, hint?: string): Promise<number> => {
+  let score = 0
+
+  // Example: Check if output contains hint
+  if (hint && run.output.toLowerCase().includes(hint.toLowerCase())) {
+    score += 0.5
+  }
+
+  // Example: Penalize tool errors
+  if (run.toolErrors) {
+    score -= 0.2
+  }
+
+  return Math.max(0, Math.min(1, score + 0.5))
+}
+```
+
+**Step 2: Use the grader**
+
+```bash
+agent-eval-harness compare a.jsonl b.jsonl \
+  --strategy custom \
+  --grader ./my-compare-grader.ts \
+  -o comparison.json
+```
+
+### LLM-as-Judge Pattern
+
+For semantic evaluation, integrate an LLM into your grader:
+
+```typescript
+// llm-compare-grader.ts
+import Anthropic from '@anthropic-ai/sdk'
+import type { ComparisonGrader } from '@plaited/agent-eval-harness/pipeline'
+
+const client = new Anthropic()
+
+export const grade: ComparisonGrader = async ({ id, input, hint, runs }) => {
+  // Build prompt for LLM
+  const runDescriptions = Object.entries(runs)
+    .map(([label, run]) => `## ${label}\nOutput: ${run.output}`)
+    .join('\n\n')
+
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 1024,
+    messages: [{
+      role: 'user',
+      content: `Compare these agent runs for the task: "${input}"
+${hint ? `Expected: ${hint}` : ''}
+
+${runDescriptions}
+
+Rank from best to worst. Respond as JSON:
+{"rankings": [{"run": "label", "rank": 1, "score": 0.95}, ...], "reasoning": "..."}`
+    }]
+  })
+
+  const text = response.content[0]?.type === 'text' ? response.content[0].text : ''
+  const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] ?? '{}')
+
+  return {
+    rankings: json.rankings ?? [],
+    reasoning: json.reasoning ?? 'LLM comparison complete'
+  }
+}
+```
+
+**Key principle:** Grade each run in isolation, then rank. This produces consistent, reproducible comparisons.
 
 ## Tool Usage Analysis
 
@@ -230,6 +258,16 @@ export const grade: ComparisonGrader = async ({ runs }) => {
 | droid | `messages-only` | N/A |
 | Custom | Varies | Check your schema |
 
+## Strategy Selection Guide
+
+| Use Case | Recommended Strategy |
+|----------|---------------------|
+| Quick comparison | `weighted` (default) |
+| A/B test with significance | `statistical` |
+| Semantic quality evaluation | `custom` (LLM-as-Judge) |
+| Complex multi-criteria scoring | `custom` (logic-based) |
+| Tool usage analysis | `custom` (see above) |
+
 ## Output Format
 
 The compare command outputs a `ComparisonReport` JSON:
@@ -263,6 +301,6 @@ The compare command outputs a `ComparisonReport` JSON:
 
 ## Related Documentation
 
-- [graders.md](graders.md) - Standard grader interface (non-comparison)
+- [inline-graders.md](inline-graders.md) - Single input/output graders
 - [eval-concepts.md](eval-concepts.md) - pass@k, pass^k metrics
 - [calibration.md](calibration.md) - Grader calibration workflow

@@ -373,19 +373,7 @@ The compare command outputs a holistic `ComparisonReport` JSON:
 }
 ```
 
-### LLM-as-Judge Templates
-
-Export grader templates for customization:
-
-```bash
-# Export Google GenAI template
-bunx @plaited/agent-eval-harness schemas --template llm-judge-gemini -o my-grader.ts
-
-# Export Anthropic template
-bunx @plaited/agent-eval-harness schemas --template llm-judge-anthropic -o my-grader.ts
-```
-
-See [comparison-graders.md](references/comparison-graders.md) for complete comparison grader documentation.
+See [comparison-graders.md](references/comparison-graders.md) for complete comparison grader documentation including LLM-as-Judge patterns.
 
 ### Comparison Grader Interface
 
@@ -526,7 +514,7 @@ chmod +x ./grader.py
 bunx @plaited/agent-eval-harness capture prompts.jsonl --schema ./claude.json --grader ./grader.py -o results.jsonl
 ```
 
-See [graders.md](references/graders.md) for complete polyglot grader documentation including shell scripts and LLM-as-judge patterns.
+See [inline-graders.md](references/inline-graders.md) for complete grader documentation including LLM-as-Judge patterns.
 
 ## Input Format
 
@@ -697,7 +685,7 @@ bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl -o comparison.jso
 |----------|-------------|
 | `bunx @plaited/agent-eval-harness` | CLI help |
 | [output-formats.md](references/output-formats.md) | JSONL schemas, command details |
-| [graders.md](references/graders.md) | Polyglot grader documentation (TypeScript, Python, shell) |
+| [inline-graders.md](references/inline-graders.md) | Single input/output graders (TypeScript, Python, shell) |
 | [comparison-graders.md](references/comparison-graders.md) | Comparison strategies (weighted, statistical, LLM-as-Judge) |
 | [calibration.md](references/calibration.md) | Grader calibration workflow |
 | [eval-concepts.md](references/eval-concepts.md) | Evaluation concepts (pass@k, pass^k) |
