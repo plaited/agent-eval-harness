@@ -48,7 +48,7 @@ Pre-built schemas are available in `.claude/skills/headless-adapters/schemas/` f
 | `extract <raw> --schema <path>` | Parse raw output into trajectories |
 | `grade <results> --grader <path>` | Apply grader to extracted results |
 | `format <results> --style <style>` | Convert to markdown, csv, or jsonl |
-| `compare <run1> <run2>... --grader <path>` | Compare multiple runs |
+| `compare <run1> <run2>...` | Compare runs (aggregate report) |
 
 ### Examples
 
@@ -76,9 +76,8 @@ cat prompts.jsonl | \
   bunx @plaited/agent-eval-harness grade -g ./grader.ts | \
   bunx @plaited/agent-eval-harness format -f markdown > report.md
 
-# Compare multiple runs
-bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl \
-  --grader ./compare-grader.ts -o comparison.jsonl
+# Compare runs (built-in strategies: weighted, statistical, custom)
+bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl -o comparison.json
 ```
 
 ## Skills for AI Agents
@@ -117,7 +116,7 @@ CLI tool for capturing agent trajectories, optimized for TypeScript/JavaScript p
 | `extract` | Parse raw output into trajectories |
 | `grade` | Apply grader to extracted results |
 | `format` | Convert to markdown, csv, or jsonl |
-| `compare` | Compare multiple runs |
+| `compare` | Compare runs (aggregate report) |
 
 **Use cases:**
 - Capturing trajectories for downstream evaluation (Braintrust, custom scorers)

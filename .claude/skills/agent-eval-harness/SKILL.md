@@ -686,9 +686,10 @@ cat results.jsonl | jq -s 'map(.trajectory | map(select(.type == "tool_call")) |
 
 # Summarize for quick analysis
 bunx @plaited/agent-eval-harness summarize results.jsonl -o summary.jsonl
-```
 
-See [downstream.md](references/downstream.md) for integration patterns with Braintrust, Gemini, and custom scorers.
+# Compare runs with built-in strategies
+bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl -o comparison.json
+```
 
 ## Quick Reference
 
@@ -696,7 +697,6 @@ See [downstream.md](references/downstream.md) for integration patterns with Brai
 |----------|-------------|
 | `bunx @plaited/agent-eval-harness` | CLI help |
 | [output-formats.md](references/output-formats.md) | JSONL schemas, command details |
-| [downstream.md](references/downstream.md) | Integration patterns (Braintrust, jq, custom scorers) |
 | [graders.md](references/graders.md) | Polyglot grader documentation (TypeScript, Python, shell) |
 | [comparison-graders.md](references/comparison-graders.md) | Comparison strategies (weighted, statistical, LLM-as-Judge) |
 | [calibration.md](references/calibration.md) | Grader calibration workflow |
