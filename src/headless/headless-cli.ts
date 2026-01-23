@@ -72,7 +72,6 @@ type ContentBlock = { type: 'text'; text: string } | { type: 'image'; source: un
  * Sends a JSON-RPC message to stdout.
  */
 const sendMessage = (message: JsonRpcResponse | JsonRpcNotification): void => {
-  // biome-ignore lint/suspicious/noConsole: Protocol output
   console.log(JSON.stringify(message))
 }
 
@@ -357,7 +356,6 @@ export const headless = async (args: string[]): Promise<void> => {
   })
 
   if (values.help) {
-    // biome-ignore lint/suspicious/noConsole: CLI help output
     console.log(`
 Usage: agent-eval-harness headless --schema <path> [--verbose]
 

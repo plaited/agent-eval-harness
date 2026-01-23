@@ -213,8 +213,6 @@ Debug mode shows:
 
 **Not yet compatible:** [Copilot CLI](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli) (no JSON output)
 
-> **Note:** For detailed protocol questions during schema creation, use the `agent-client-protocol-docs` MCP server. See SKILL.md for configuration.
-
 ## Troubleshooting
 
 ### Common Issues
@@ -259,13 +257,3 @@ echo '{"type":"assistant","message":{"content":[{"type":"text","text":"Hello"}]}
   jq '.message.content[0].text'
 # Expected: "Hello"
 ```
-
-## Contributing Tested Schemas
-
-Once your schema is working:
-
-1. Run the integration test suite with your schema
-2. Submit a PR to add it to the `schemas/` directory
-3. Include the integration test file as `integration_tests/<agent>.spec.ts`
-
-Only schemas with passing integration tests are included in the official distribution.

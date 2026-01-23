@@ -373,9 +373,12 @@ export const createSessionManager = (config: SessionManagerConfig) => {
 
 /**
  * Generates a unique session ID.
+ *
+ * @remarks
+ * Uses crypto.randomUUID() for secure random generation instead of Math.random().
  */
 const generateSessionId = (): string => {
-  return `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  return `sess_${crypto.randomUUID()}`
 }
 
 /**

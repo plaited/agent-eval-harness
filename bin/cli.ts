@@ -30,7 +30,6 @@ import { schemasCli } from '../src/schemas/schemas-cli.ts'
 const [command, ...args] = Bun.argv.slice(2)
 
 const printHelp = () => {
-  // biome-ignore lint/suspicious/noConsole: CLI help output
   console.log(`
 agent-eval-harness - CLI tool for agent evaluation
 
@@ -144,7 +143,6 @@ const main = async () => {
     case '-v':
     case '--version': {
       const { version } = await import('../package.json')
-      // biome-ignore lint/suspicious/noConsole: CLI version output
       console.log(version)
       break
     }

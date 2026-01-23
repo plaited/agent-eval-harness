@@ -51,6 +51,7 @@ export const runGrade = async (
       output: extracted.output,
       hint: extracted.hint,
       trajectory: extracted.trajectory,
+      metadata: extracted.metadata,
     })
 
     const graded: GradedResult = {
@@ -110,7 +111,6 @@ export const grade = async (args: string[]): Promise<void> => {
   })
 
   if (values.help) {
-    // biome-ignore lint/suspicious/noConsole: CLI help output
     console.log(`
 Usage: agent-eval-harness grade [extracted.jsonl] --grader <grader> [options]
 

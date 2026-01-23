@@ -35,7 +35,6 @@ export const writeOutput = async (line: string, outputPath?: string, append?: bo
       await Bun.write(outputPath, `${line}\n`)
     }
   } else {
-    // biome-ignore lint/suspicious/noConsole: CLI stdout output
     console.log(line)
   }
 }

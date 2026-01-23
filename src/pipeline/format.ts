@@ -235,7 +235,6 @@ export const format = async (args: string[]): Promise<void> => {
   })
 
   if (values.help) {
-    // biome-ignore lint/suspicious/noConsole: CLI help output
     console.log(`
 Usage: agent-eval-harness format [results.jsonl] [options]
 

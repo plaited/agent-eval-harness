@@ -42,7 +42,7 @@ export const formatSummary = (result: CaptureResult): SummaryResult => {
     id: result.id,
     input: inputText,
     output: result.output,
-    toolCalls: result.trajectory.filter((s) => s.type === 'tool_call').map((s) => (s as { name: string }).name),
+    toolCalls: result.trajectory.flatMap((s) => (s.type === 'tool_call' ? [s.name] : [])),
     duration: result.timing.end - result.timing.start,
   }
 }
@@ -160,7 +160,6 @@ export const runSummarize = async (config: SummarizeConfig): Promise<string> => 
   if (outputPath) {
     await Bun.write(resolvePath(outputPath), output)
   } else {
-    // biome-ignore lint/suspicious/noConsole: CLI stdout output
     console.log(output)
   }
 
@@ -188,7 +187,6 @@ export const summarize = async (args: string[]): Promise<void> => {
   })
 
   if (values.help) {
-    // biome-ignore lint/suspicious/noConsole: CLI help output
     console.log(`
 Usage: agent-eval-harness summarize <results.jsonl> [options]
 

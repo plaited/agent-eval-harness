@@ -99,10 +99,8 @@ export const runSchemas = async (config: SchemasConfig): Promise<Record<string, 
   // List mode
   if (list) {
     const names = Object.keys(SCHEMA_REGISTRY)
-    // biome-ignore lint/suspicious/noConsole: CLI stdout output
     console.log('Available schemas:')
     for (const name of names) {
-      // biome-ignore lint/suspicious/noConsole: CLI stdout output
       console.log(`  - ${name}`)
     }
     return names
@@ -123,7 +121,6 @@ export const runSchemas = async (config: SchemasConfig): Promise<Record<string, 
     if (outputPath) {
       await Bun.write(resolvePath(outputPath), output)
     } else {
-      // biome-ignore lint/suspicious/noConsole: CLI stdout output
       console.log(output)
     }
 
@@ -154,15 +151,12 @@ export const runSchemas = async (config: SchemasConfig): Promise<Record<string, 
     if (outputPath) {
       await Bun.write(resolvePath(outputPath), output)
     } else {
-      // biome-ignore lint/suspicious/noConsole: CLI stdout output
       console.log(output)
     }
   } else {
     // Default: list schemas
-    // biome-ignore lint/suspicious/noConsole: CLI stdout output
     console.log('Available schemas (use --json to export):')
     for (const name of Object.keys(allSchemas)) {
-      // biome-ignore lint/suspicious/noConsole: CLI stdout output
       console.log(`  - ${name}`)
     }
   }
@@ -193,7 +187,6 @@ export const schemasCli = async (args: string[]): Promise<void> => {
   })
 
   if (values.help) {
-    // biome-ignore lint/suspicious/noConsole: CLI help output
     console.log(`
 Usage: agent-eval-harness schemas [schema-name] [options]
 

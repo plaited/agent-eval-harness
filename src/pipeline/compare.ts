@@ -3,7 +3,10 @@
  *
  * @remarks
  * Compares results from different configurations (agents, MCP servers, models)
- * using a user-provided comparison grader that ranks the runs.
+ * using either built-in strategies or a user-provided comparison grader.
+ *
+ * Outputs a holistic ComparisonReport JSON (not JSONL) containing aggregate
+ * statistics across quality, performance, reliability, and head-to-head metrics.
  *
  * Terminology: "runs" (not "agents") because comparisons can be:
  * - Same agent, different MCP servers
@@ -12,13 +15,33 @@
  * - Same agent, different model versions
  * - Different agents entirely
  *
+ * Built-in strategies:
+ * - `weighted`: Configurable weights for quality, latency, reliability (default)
+ * - `statistical`: Bootstrap sampling for confidence intervals
+ *
  * @packageDocumentation
  */
 
 import { basename, extname } from 'node:path'
 import { parseArgs } from 'node:util'
-import { loadResults, logProgress, writeOutput } from '../core.ts'
-import type { CaptureResult } from '../schemas.ts'
+import { buildResultsIndex, logProgress, writeOutput } from '../core.ts'
+import { grade as statisticalGrade } from '../graders/compare-statistical.ts'
+import { grade as weightedGrade } from '../graders/compare-weighted.ts'
+import type {
+  CaptureResult,
+  ComparisonMeta,
+  ComparisonReport,
+  HeadToHead,
+  LatencyStats,
+  PairwiseComparison,
+  PerformanceMetrics,
+  PromptComparison,
+  QualityMetrics,
+  ReliabilityMetrics,
+  ScoreDistribution,
+  TrajectoryInfo,
+  TrajectoryRichness,
+} from '../schemas.ts'
 import type {
   CompareConfig,
   ComparisonGrader,
@@ -26,6 +49,19 @@ import type {
   ComparisonResult,
   LabeledRun,
 } from './pipeline.types.ts'
+
+/** Comparison strategy type */
+export type CompareStrategy = 'weighted' | 'statistical' | 'custom'
+
+/** Extended compare config with strategy support */
+export type ExtendedCompareConfig = Omit<CompareConfig, 'graderPath'> & {
+  /** Comparison strategy (default: weighted) */
+  strategy?: CompareStrategy
+  /** Path to custom grader (required if strategy is 'custom') */
+  graderPath?: string
+  /** Output format (default: json) */
+  format?: 'json' | 'markdown'
+}
 
 /**
  * Load comparison grader from file.
@@ -93,50 +129,204 @@ const parseLabeledRun = (arg: string): LabeledRun => {
 }
 
 /**
- * Execute pipeline compare with configuration.
+ * Validate that all run files exist.
  *
- * @param config - Compare configuration
+ * @param runs - Labeled runs to validate
+ * @throws Error if any file doesn't exist
  */
-export const runCompare = async (config: CompareConfig): Promise<void> => {
-  const { runs, graderPath, outputPath, progress = false } = config
+const validateRunFiles = async (runs: LabeledRun[]): Promise<void> => {
+  const missing: string[] = []
+
+  for (const run of runs) {
+    const exists = await Bun.file(run.path).exists()
+    if (!exists) {
+      missing.push(`${run.label}: ${run.path}`)
+    }
+  }
+
+  if (missing.length > 0) {
+    throw new Error(`Result file(s) not found:\n  ${missing.join('\n  ')}`)
+  }
+}
+
+/**
+ * Infer output format from file extension.
+ *
+ * @param outputPath - Output file path
+ * @param explicitFormat - Explicitly provided format (takes precedence)
+ * @returns Inferred format
+ */
+const inferFormat = (outputPath: string | undefined, explicitFormat: string | undefined): 'json' | 'markdown' => {
+  // Explicit format takes precedence
+  if (explicitFormat === 'json' || explicitFormat === 'markdown') {
+    return explicitFormat
+  }
+
+  // Infer from file extension
+  if (outputPath) {
+    const ext = extname(outputPath).toLowerCase()
+    if (ext === '.md' || ext === '.markdown') {
+      return 'markdown'
+    }
+  }
+
+  return 'json'
+}
+
+/**
+ * Get grader function based on strategy.
+ *
+ * @param strategy - Comparison strategy
+ * @param graderPath - Path to custom grader (for 'custom' strategy)
+ * @returns Comparison grader function
+ */
+const getGrader = async (strategy: CompareStrategy, graderPath?: string): Promise<ComparisonGrader> => {
+  switch (strategy) {
+    case 'weighted':
+      return weightedGrade
+    case 'statistical':
+      return statisticalGrade
+    case 'custom':
+      if (!graderPath) {
+        throw new Error('Custom strategy requires --grader path')
+      }
+      return loadComparisonGrader(graderPath)
+  }
+}
+
+/**
+ * Compute percentile from sorted array.
+ *
+ * @param sorted - Sorted array of numbers
+ * @param p - Percentile (0-1)
+ * @returns Value at percentile
+ */
+const percentile = (sorted: number[], p: number): number => {
+  if (sorted.length === 0) return 0
+  const idx = Math.floor(sorted.length * p)
+  return sorted[Math.min(idx, sorted.length - 1)] ?? 0
+}
+
+/**
+ * Compute latency statistics from array of durations.
+ *
+ * @param durations - Array of durations in milliseconds
+ * @returns Latency statistics
+ */
+const computeLatencyStats = (durations: number[]): LatencyStats => {
+  if (durations.length === 0) {
+    return { p50: 0, p90: 0, p99: 0, mean: 0, min: 0, max: 0 }
+  }
+
+  const sorted = [...durations].sort((a, b) => a - b)
+  const sum = sorted.reduce((a, b) => a + b, 0)
+
+  return {
+    p50: percentile(sorted, 0.5),
+    p90: percentile(sorted, 0.9),
+    p99: percentile(sorted, 0.99),
+    mean: sum / sorted.length,
+    min: sorted[0] ?? 0,
+    max: sorted[sorted.length - 1] ?? 0,
+  }
+}
+
+/**
+ * Compute score distribution histogram.
+ *
+ * @param scores - Array of scores (0-1)
+ * @returns Score distribution histogram
+ */
+const computeScoreDistribution = (scores: number[]): ScoreDistribution => {
+  const dist: ScoreDistribution = {
+    '0.0-0.2': 0,
+    '0.2-0.4': 0,
+    '0.4-0.6': 0,
+    '0.6-0.8': 0,
+    '0.8-1.0': 0,
+  }
+
+  for (const score of scores) {
+    if (score < 0.2) dist['0.0-0.2']++
+    else if (score < 0.4) dist['0.2-0.4']++
+    else if (score < 0.6) dist['0.4-0.6']++
+    else if (score < 0.8) dist['0.6-0.8']++
+    else dist['0.8-1.0']++
+  }
+
+  return dist
+}
+
+/**
+ * Detect trajectory richness from capture results.
+ *
+ * @param results - Array of capture results
+ * @returns Most common trajectory richness level
+ */
+const detectTrajectoryRichness = (results: CaptureResult[]): TrajectoryRichness => {
+  // Check metadata first
+  for (const r of results) {
+    const richness = r.metadata?.trajectoryRichness
+    if (richness === 'full' || richness === 'minimal' || richness === 'messages-only') {
+      return richness as TrajectoryRichness
+    }
+  }
+
+  // Infer from trajectory content
+  for (const r of results) {
+    const hasThought = r.trajectory.some((s) => s.type === 'thought')
+    const hasToolCall = r.trajectory.some((s) => s.type === 'tool_call')
+    if (hasThought || hasToolCall) return 'full'
+  }
+
+  // Check if we have any trajectory at all
+  const hasTrajectory = results.some((r) => r.trajectory.length > 0)
+  return hasTrajectory ? 'messages-only' : 'minimal'
+}
+
+/**
+ * Execute pipeline compare and generate aggregate report.
+ *
+ * @param config - Extended compare configuration
+ * @returns Comparison report
+ */
+export const runCompare = async (config: ExtendedCompareConfig): Promise<ComparisonReport> => {
+  const { runs, strategy = 'weighted', graderPath, outputPath, progress = false, format = 'json' } = config
 
   if (runs.length < 2) {
     throw new Error('At least 2 runs required for comparison')
   }
 
-  // Load comparison grader
-  const grader = await loadComparisonGrader(graderPath)
+  // Get grader based on strategy
+  const grader = await getGrader(strategy, graderPath)
 
-  logProgress(`Comparing ${runs.length} runs with: ${graderPath}`, progress)
+  const strategyLabel = strategy === 'custom' ? `custom: ${graderPath}` : strategy
+  logProgress(`Comparing ${runs.length} runs with strategy: ${strategyLabel}`, progress)
   for (const run of runs) {
     logProgress(`  - ${run.label}: ${run.path}`, progress)
   }
 
-  // Load all runs
-  const runResults: Record<string, CaptureResult[]> = {}
+  // Load all runs using indexed streaming (memory-efficient for large files)
+  // Uses Map<id, result> instead of arrays for O(1) lookups
+  const runResults: Record<string, Map<string, CaptureResult>> = {}
   for (const run of runs) {
     logProgress(`Loading ${run.label}...`, progress)
-    runResults[run.label] = await loadResults(run.path)
+    runResults[run.label] = await buildResultsIndex(run.path)
   }
 
-  // Build map of prompt IDs to runs
+  // Build set of all prompt IDs across runs
   const promptIds = new Set<string>()
-  for (const results of Object.values(runResults)) {
-    for (const result of results) {
-      promptIds.add(result.id)
+  for (const resultsMap of Object.values(runResults)) {
+    for (const id of resultsMap.keys()) {
+      promptIds.add(id)
     }
   }
 
   logProgress(`Comparing ${promptIds.size} prompts...`, progress)
 
-  let isFirstOutput = true
-
-  // Clear output file if specified
-  if (outputPath) {
-    await Bun.write(outputPath, '')
-  }
-
-  const results: ComparisonResult[] = []
+  // Per-prompt comparison results
+  const perPromptResults: ComparisonResult[] = []
+  const promptComparisons: PromptComparison[] = []
 
   for (const promptId of promptIds) {
     logProgress(`  ${promptId}`, progress)
@@ -145,18 +335,24 @@ export const runCompare = async (config: CompareConfig): Promise<void> => {
     const runsData: ComparisonGraderInput['runs'] = {}
     let input: string | string[] = ''
     let hint: string | undefined
+    let metadata: Record<string, unknown> | undefined
 
-    for (const [label, labelResults] of Object.entries(runResults)) {
-      const result = labelResults.find((r) => r.id === promptId)
+    for (const [label, resultsMap] of Object.entries(runResults)) {
+      const result = resultsMap.get(promptId)
       if (result) {
         runsData[label] = {
           output: result.output,
           trajectory: result.trajectory,
+          // Include additional fields for graders that need them
+          ...(result.score && { score: result.score }),
+          ...(result.timing && { duration: result.timing.total }),
+          ...(result.toolErrors !== undefined && { toolErrors: result.toolErrors }),
         }
-        // Use first found input/hint as the reference
+        // Use first found input/hint/metadata as the reference
         if (!input) {
           input = result.input
           hint = result.hint
+          metadata = result.metadata
         }
       }
     }
@@ -172,6 +368,7 @@ export const runCompare = async (config: CompareConfig): Promise<void> => {
       id: promptId,
       input,
       hint,
+      metadata,
       runs: runsData,
     }
 
@@ -185,16 +382,164 @@ export const runCompare = async (config: CompareConfig): Promise<void> => {
       reasoning: graderResult.reasoning,
     }
 
-    results.push(comparisonResult)
+    perPromptResults.push(comparisonResult)
+
+    // Build prompt comparison for head-to-head
+    const winner = graderResult.rankings.find((r) => r.rank === 1)
+    const scores: Record<string, number> = {}
+    const latencies: Record<string, number> = {}
+    const hadErrors: Record<string, boolean> = {}
+
+    for (const ranking of graderResult.rankings) {
+      scores[ranking.run] = ranking.score
+    }
+
+    for (const [label, data] of Object.entries(runsData)) {
+      latencies[label] = data.duration ?? 0
+      hadErrors[label] = data.toolErrors ?? false
+    }
+
+    promptComparisons.push({
+      id: promptId,
+      winner: winner?.run ?? null,
+      scores,
+      latencies,
+      hadErrors,
+    })
 
     // Log winner
-    const winner = graderResult.rankings.find((r) => r.rank === 1)
     if (winner) {
       logProgress(`    Winner: ${winner.run} (${winner.score.toFixed(2)})`, progress)
     }
+  }
 
-    await writeOutput(JSON.stringify(comparisonResult), outputPath, !isFirstOutput)
-    isFirstOutput = false
+  // Compute aggregate metrics
+  const runLabels = runs.map((r) => r.label)
+
+  // Quality metrics (iterate over Map values)
+  const quality: Record<string, QualityMetrics> = {}
+  for (const label of runLabels) {
+    const resultsMap = runResults[label] ?? new Map()
+    const results = [...resultsMap.values()]
+    const scores = results.map((r) => r.score?.score ?? 0)
+    const passes = results.filter((r) => r.score?.pass === true).length
+    const fails = results.length - passes
+
+    quality[label] = {
+      avgScore: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+      passRate: results.length > 0 ? passes / results.length : 0,
+      passCount: passes,
+      failCount: fails,
+      scoreDistribution: computeScoreDistribution(scores),
+    }
+  }
+
+  // Performance metrics
+  const performance: Record<string, PerformanceMetrics> = {}
+  for (const label of runLabels) {
+    const resultsMap = runResults[label] ?? new Map()
+    const results = [...resultsMap.values()]
+    const durations = results.map((r) => r.timing?.total ?? 0)
+    const firstResponses = results.map((r) => r.timing?.firstResponse).filter((v): v is number => v !== undefined)
+
+    performance[label] = {
+      latency: computeLatencyStats(durations),
+      firstResponse: firstResponses.length > 0 ? computeLatencyStats(firstResponses) : undefined,
+      totalDuration: durations.reduce((a, b) => a + b, 0),
+    }
+  }
+
+  // Reliability metrics
+  const reliability: Record<string, ReliabilityMetrics> = {}
+  for (const label of runLabels) {
+    const resultsMap = runResults[label] ?? new Map()
+    const results = [...resultsMap.values()]
+    const toolErrorCount = results.filter((r) => r.toolErrors === true).length
+    const timeoutCount = results.filter((r) =>
+      r.errors?.some((e: string) => e.toLowerCase().includes('timeout')),
+    ).length
+    const completedCount = results.filter((r) => r.output && !r.errors?.length).length
+
+    reliability[label] = {
+      toolErrors: toolErrorCount,
+      toolErrorRate: results.length > 0 ? toolErrorCount / results.length : 0,
+      timeouts: timeoutCount,
+      timeoutRate: results.length > 0 ? timeoutCount / results.length : 0,
+      completionRate: results.length > 0 ? completedCount / results.length : 1,
+    }
+  }
+
+  // Trajectory info
+  const trajectoryInfo: Record<string, TrajectoryInfo> = {}
+  for (const label of runLabels) {
+    const resultsMap = runResults[label] ?? new Map()
+    const results = [...resultsMap.values()]
+    const stepCounts = results.map((r) => r.trajectory?.length ?? 0)
+    const avgStepCount = stepCounts.length > 0 ? stepCounts.reduce((a, b) => a + b, 0) / stepCounts.length : 0
+
+    trajectoryInfo[label] = {
+      richness: detectTrajectoryRichness(results),
+      avgStepCount,
+    }
+  }
+
+  // Pairwise comparisons
+  const pairwise: PairwiseComparison[] = []
+  for (let i = 0; i < runLabels.length; i++) {
+    for (let j = i + 1; j < runLabels.length; j++) {
+      const runA = runLabels[i]
+      const runB = runLabels[j]
+
+      // Skip if labels are undefined (shouldn't happen but TypeScript requires check)
+      if (!runA || !runB) continue
+
+      let aWins = 0
+      let bWins = 0
+      let ties = 0
+
+      for (const pc of promptComparisons) {
+        if (pc.winner === runA) aWins++
+        else if (pc.winner === runB) bWins++
+        else ties++
+      }
+
+      pairwise.push({ runA, runB, aWins, bWins, ties })
+    }
+  }
+
+  // Head-to-head
+  const headToHead: HeadToHead = {
+    prompts: promptComparisons,
+    pairwise,
+  }
+
+  // Count prompts where all runs are present
+  const promptsWithAllRuns = promptComparisons.filter((pc) => Object.keys(pc.scores).length === runLabels.length).length
+
+  // Build meta
+  const meta: ComparisonMeta = {
+    generatedAt: new Date().toISOString(),
+    runs: runLabels,
+    promptCount: promptIds.size,
+    promptsWithAllRuns,
+  }
+
+  // Assemble report
+  const report: ComparisonReport = {
+    meta,
+    quality,
+    performance,
+    reliability,
+    trajectoryInfo,
+    headToHead,
+  }
+
+  // Output
+  if (format === 'markdown') {
+    const markdown = formatReportAsMarkdown(report)
+    await writeOutput(markdown, outputPath, false)
+  } else {
+    await writeOutput(JSON.stringify(report, null, 2), outputPath, false)
   }
 
   // Summary statistics
@@ -202,24 +547,90 @@ export const runCompare = async (config: CompareConfig): Promise<void> => {
   logProgress('=== Summary ===', progress)
 
   const winCounts: Record<string, number> = {}
-  for (const run of runs) {
-    winCounts[run.label] = 0
+  for (const label of runLabels) {
+    winCounts[label] = 0
   }
 
-  for (const result of results) {
-    const winner = result.rankings.find((r) => r.rank === 1)
-    if (winner && winner.run in winCounts) {
-      const currentCount = winCounts[winner.run] ?? 0
-      winCounts[winner.run] = currentCount + 1
+  for (const pc of promptComparisons) {
+    if (pc.winner && pc.winner in winCounts) {
+      const current = winCounts[pc.winner] ?? 0
+      winCounts[pc.winner] = current + 1
     }
   }
 
   for (const [label, wins] of Object.entries(winCounts)) {
-    const pct = ((wins / results.length) * 100).toFixed(1)
+    const pct = promptComparisons.length > 0 ? ((wins / promptComparisons.length) * 100).toFixed(1) : '0.0'
     logProgress(`  ${label}: ${wins} wins (${pct}%)`, progress)
   }
 
   logProgress('Done!', progress)
+
+  return report
+}
+
+/**
+ * Format comparison report as markdown.
+ *
+ * @param report - Comparison report
+ * @returns Markdown string
+ */
+const formatReportAsMarkdown = (report: ComparisonReport): string => {
+  const lines: string[] = []
+
+  lines.push('# Comparison Report')
+  lines.push('')
+  lines.push(`Generated: ${report.meta.generatedAt}`)
+  lines.push(`Runs: ${report.meta.runs.join(', ')}`)
+  lines.push(`Prompts: ${report.meta.promptCount} total, ${report.meta.promptsWithAllRuns} with all runs`)
+  lines.push('')
+
+  // Quality table
+  lines.push('## Quality')
+  lines.push('')
+  lines.push('| Run | Avg Score | Pass Rate | Pass | Fail |')
+  lines.push('|-----|-----------|-----------|------|------|')
+  for (const [label, q] of Object.entries(report.quality)) {
+    lines.push(
+      `| ${label} | ${q.avgScore.toFixed(3)} | ${(q.passRate * 100).toFixed(1)}% | ${q.passCount} | ${q.failCount} |`,
+    )
+  }
+  lines.push('')
+
+  // Performance table
+  lines.push('## Performance')
+  lines.push('')
+  lines.push('| Run | P50 (ms) | P90 (ms) | P99 (ms) | Mean (ms) |')
+  lines.push('|-----|----------|----------|----------|-----------|')
+  for (const [label, p] of Object.entries(report.performance)) {
+    lines.push(
+      `| ${label} | ${p.latency.p50.toFixed(0)} | ${p.latency.p90.toFixed(0)} | ${p.latency.p99.toFixed(0)} | ${p.latency.mean.toFixed(0)} |`,
+    )
+  }
+  lines.push('')
+
+  // Reliability table
+  lines.push('## Reliability')
+  lines.push('')
+  lines.push('| Run | Tool Errors | Error Rate | Completion Rate |')
+  lines.push('|-----|-------------|------------|-----------------|')
+  for (const [label, r] of Object.entries(report.reliability)) {
+    lines.push(
+      `| ${label} | ${r.toolErrors} | ${(r.toolErrorRate * 100).toFixed(1)}% | ${(r.completionRate * 100).toFixed(1)}% |`,
+    )
+  }
+  lines.push('')
+
+  // Pairwise wins
+  lines.push('## Head-to-Head')
+  lines.push('')
+  lines.push('| Matchup | Wins | Wins | Ties |')
+  lines.push('|---------|------|------|------|')
+  for (const p of report.headToHead.pairwise) {
+    lines.push(`| ${p.runA} vs ${p.runB} | ${p.aWins} | ${p.bWins} | ${p.ties} |`)
+  }
+  lines.push('')
+
+  return lines.join('\n')
 }
 
 /**
@@ -233,7 +644,9 @@ export const compare = async (args: string[]): Promise<void> => {
     options: {
       run: { type: 'string', multiple: true },
       grader: { type: 'string', short: 'g' },
+      strategy: { type: 'string', short: 's' },
       output: { type: 'string', short: 'o' },
+      format: { type: 'string', short: 'f' },
       progress: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h' },
     },
@@ -241,58 +654,58 @@ export const compare = async (args: string[]): Promise<void> => {
   })
 
   if (values.help) {
-    // biome-ignore lint/suspicious/noConsole: CLI help output
     console.log(`
-Usage: agent-eval-harness compare [files...] --grader <grader> [options]
+Usage: agent-eval-harness compare [files...] [options]
 
-Compare multiple runs of the same prompts.
+Compare multiple runs of the same prompts and generate aggregate report.
 
 Arguments:
   files...          Result files to compare (positional, unlimited)
 
 Options:
   --run             Labeled run format: "label:path.jsonl" (alternative to positional)
-  -g, --grader      Path to comparison grader (.ts/.js module) (required)
+  -s, --strategy    Comparison strategy: weighted (default), statistical, or custom
+  -g, --grader      Path to custom grader (required if strategy=custom)
   -o, --output      Output file (default: stdout)
+  -f, --format      Output format: json (default) or markdown
   --progress        Show progress to stderr
   -h, --help        Show this help message
 
-Comparison Grader:
+Built-in Strategies:
+  weighted      Configurable weights for quality, latency, reliability
+                Customize via: COMPARE_QUALITY, COMPARE_LATENCY, COMPARE_RELIABILITY
+  statistical   Bootstrap sampling for confidence intervals
+                Customize via: COMPARE_BOOTSTRAP_ITERATIONS
+
+Custom Grader:
   Must export 'grade' or 'compare' function with signature:
     (params: ComparisonGraderInput) => Promise<ComparisonGraderResult>
 
-  Input includes all runs' results for a single prompt.
-  Output should rank runs from best to worst.
-
 Examples:
-  # Compare multiple result files (positional)
-  agent-eval-harness compare run1.jsonl run2.jsonl run3.jsonl -g ./compare-grader.ts
+  # Default: weighted strategy with JSON output
+  agent-eval-harness compare run1.jsonl run2.jsonl -o comparison.json
+
+  # Statistical significance strategy
+  agent-eval-harness compare run1.jsonl run2.jsonl --strategy statistical -o comparison.json
+
+  # Custom weights
+  COMPARE_QUALITY=0.7 COMPARE_LATENCY=0.2 COMPARE_RELIABILITY=0.1 \\
+    agent-eval-harness compare run1.jsonl run2.jsonl -o comparison.json
+
+  # Markdown report
+  agent-eval-harness compare run1.jsonl run2.jsonl --format markdown -o report.md
+
+  # Custom grader
+  agent-eval-harness compare run1.jsonl run2.jsonl \\
+    --strategy custom --grader ./my-llm-judge.ts -o comparison.json
 
   # With explicit labels
   agent-eval-harness compare \\
     --run "with-bun-mcp:results-bun.jsonl" \\
     --run "vanilla:results-vanilla.jsonl" \\
-    -g ./compare-grader.ts
-
-  # Mix positional and labeled
-  agent-eval-harness compare results-*.jsonl \\
-    --run "baseline:baseline.jsonl" \\
-    -g ./compare-grader.ts -o comparison.jsonl
-
-  # Typical workflow
-  # 1. Capture with different configs
-  agent-eval-harness capture prompts.jsonl -s claude.json -o vanilla.jsonl
-  agent-eval-harness capture prompts.jsonl -s claude-with-mcp.json -o with-mcp.jsonl
-
-  # 2. Compare results
-  agent-eval-harness compare vanilla.jsonl with-mcp.jsonl -g ./compare-grader.ts
+    -o comparison.json
 `)
     return
-  }
-
-  if (!values.grader) {
-    console.error('Error: --grader is required')
-    process.exit(1)
   }
 
   // Collect runs from positional args and --run flags
@@ -312,14 +725,43 @@ Examples:
 
   if (runs.length < 2) {
     console.error('Error: At least 2 result files required for comparison')
-    console.error('Example: agent-eval-harness compare run1.jsonl run2.jsonl -g ./grader.ts')
+    console.error('Example: agent-eval-harness compare run1.jsonl run2.jsonl')
+    process.exit(1)
+  }
+
+  // Validate that all run files exist (early error for better UX)
+  try {
+    await validateRunFiles(runs)
+  } catch (error) {
+    console.error(`Error: ${error instanceof Error ? error.message : error}`)
+    process.exit(1)
+  }
+
+  // Validate strategy
+  const strategy = (values.strategy as CompareStrategy) ?? 'weighted'
+  if (!['weighted', 'statistical', 'custom'].includes(strategy)) {
+    console.error(`Error: Invalid strategy '${strategy}'. Use: weighted, statistical, or custom`)
+    process.exit(1)
+  }
+
+  if (strategy === 'custom' && !values.grader) {
+    console.error('Error: --grader is required when using --strategy custom')
+    process.exit(1)
+  }
+
+  // Validate format (explicit format takes precedence, otherwise infer from extension)
+  const format = inferFormat(values.output, values.format)
+  if (values.format && !['json', 'markdown'].includes(values.format)) {
+    console.error(`Error: Invalid format '${values.format}'. Use: json or markdown`)
     process.exit(1)
   }
 
   await runCompare({
     runs,
+    strategy,
     graderPath: values.grader,
     outputPath: values.output,
     progress: values.progress,
+    format,
   })
 }

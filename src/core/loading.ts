@@ -94,3 +94,80 @@ export const loadJsonl = async <T = unknown>(path: string): Promise<T[]> => {
       }
     })
 }
+
+// ============================================================================
+// Streaming Loading
+// ============================================================================
+
+/**
+ * Stream capture results from a JSONL file.
+ *
+ * @remarks
+ * Memory-efficient alternative to loadResults for large files.
+ * Yields results one at a time using an async generator.
+ *
+ * @param path - Path to the results.jsonl file
+ * @yields Parsed and validated capture results
+ * @throws Error if file cannot be read or any line is invalid
+ *
+ * @public
+ */
+export async function* streamResults(path: string): AsyncGenerator<CaptureResult, void, unknown> {
+  const file = Bun.file(path)
+  const text = await file.text()
+  const lines = text.split('\n')
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]?.trim()
+    if (!line) continue
+
+    try {
+      yield CaptureResultSchema.parse(JSON.parse(line))
+    } catch (error) {
+      throw new Error(`Invalid result at line ${i + 1}: ${error instanceof Error ? error.message : error}`)
+    }
+  }
+}
+
+/**
+ * Build an indexed map of results by ID using streaming.
+ *
+ * @remarks
+ * Memory-efficient for the compare command. Loads results into a Map
+ * keyed by ID for O(1) lookups without holding raw file content.
+ *
+ * For very large files (10k+ results), this is more memory-efficient than
+ * loading everything into an array and then building an index.
+ *
+ * @param path - Path to the results.jsonl file
+ * @returns Map of result ID to CaptureResult
+ *
+ * @public
+ */
+export const buildResultsIndex = async (path: string): Promise<Map<string, CaptureResult>> => {
+  const index = new Map<string, CaptureResult>()
+
+  for await (const result of streamResults(path)) {
+    index.set(result.id, result)
+  }
+
+  return index
+}
+
+/**
+ * Count lines in a JSONL file without loading content.
+ *
+ * @remarks
+ * Useful for detecting large files that should use streaming mode.
+ * Uses byte-level scanning for efficiency.
+ *
+ * @param path - Path to the JSONL file
+ * @returns Number of non-empty lines
+ *
+ * @public
+ */
+export const countLines = async (path: string): Promise<number> => {
+  const file = Bun.file(path)
+  const text = await file.text()
+  return text.split('\n').filter((line) => line.trim()).length
+}

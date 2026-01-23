@@ -171,7 +171,6 @@ export const runBalance = async (config: BalanceConfig): Promise<BalanceAnalysis
   if (outputPath) {
     await Bun.write(resolvePath(outputPath), output)
   } else {
-    // biome-ignore lint/suspicious/noConsole: CLI stdout output
     console.log(output)
   }
 
@@ -216,7 +215,6 @@ export const balance = async (args: string[]): Promise<void> => {
   })
 
   if (values.help) {
-    // biome-ignore lint/suspicious/noConsole: CLI help output
     console.log(`
 Usage: agent-eval-harness balance <prompts.jsonl> [options]
 

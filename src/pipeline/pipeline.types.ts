@@ -26,6 +26,8 @@ export type RawOutput = {
   input: string | string[]
   /** Grader context hint */
   hint?: string
+  /** Optional metadata from original prompt */
+  metadata?: Record<string, unknown>
   /** Raw output lines from the agent (JSON strings) */
   rawLines: string[]
   /** Timing metadata */
@@ -58,6 +60,8 @@ export type ExtractedResult = {
   trajectory: TrajectoryStep[]
   /** Whether tool errors were detected */
   toolErrors: boolean
+  /** Optional metadata from original prompt */
+  metadata?: Record<string, unknown>
   /** Timing metadata */
   timing: {
     start: number
@@ -159,6 +163,28 @@ export type LabeledRun = {
 }
 
 /**
+ * Run data provided to comparison graders.
+ *
+ * @remarks
+ * Extended run data includes optional fields that built-in graders use:
+ * - `score`: Grader result if the run was previously graded
+ * - `duration`: Total duration from timing
+ * - `toolErrors`: Whether tool errors occurred
+ */
+export type ComparisonRunData = {
+  /** Final agent output */
+  output: string
+  /** Execution trajectory (optional, varies by adapter) */
+  trajectory?: TrajectoryStep[]
+  /** Grader score (if run was graded) */
+  score?: GraderResult
+  /** Total duration in milliseconds */
+  duration?: number
+  /** Whether tool errors occurred */
+  toolErrors?: boolean
+}
+
+/**
  * Input to comparison grader function.
  *
  * @remarks
@@ -172,8 +198,10 @@ export type ComparisonGraderInput = {
   input: string | string[]
   /** Grader context hint */
   hint?: string
+  /** Optional metadata from original prompt */
+  metadata?: Record<string, unknown>
   /** Results keyed by run label */
-  runs: Record<string, { output: string; trajectory?: TrajectoryStep[] }>
+  runs: Record<string, ComparisonRunData>
 }
 
 /**

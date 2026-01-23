@@ -8,6 +8,9 @@
  */
 
 export {
+  // Loading
+  buildResultsIndex,
+  countLines,
   // Trajectory
   detectTrajectoryRichness,
   extractContent,
@@ -18,11 +21,11 @@ export {
   getInputPreview,
   hasToolErrors,
   headTailPreview,
-  // Loading
   loadJsonl,
   loadPrompts,
   loadResults,
   logProgress,
   resolvePath,
+  streamResults,
   writeOutput,
 } from './core/core.ts'

@@ -105,7 +105,7 @@ const runShell = async (
  */
 export const runPipeline = async (
   config: RunConfig,
-  prompts: Array<{ id: string; input: string | string[]; hint?: string }>,
+  prompts: Array<{ id: string; input: string | string[]; hint?: string; metadata?: Record<string, unknown> }>,
   outputPath?: string,
 ): Promise<void> => {
   const {
@@ -181,6 +181,7 @@ export const runPipeline = async (
         id: promptCase.id,
         input: promptCase.input,
         hint: promptCase.hint,
+        metadata: promptCase.metadata,
         rawLines,
         timing: {
           start: startTime,
@@ -224,6 +225,7 @@ export const runPipeline = async (
         id: promptCase.id,
         input: promptCase.input,
         hint: promptCase.hint,
+        metadata: promptCase.metadata,
         rawLines: allLines,
         timing: {
           start: startTime,
@@ -267,6 +269,7 @@ export const runPipeline = async (
         id: promptCase.id,
         input: promptCase.input,
         hint: promptCase.hint,
+        metadata: promptCase.metadata,
         rawLines: allLines,
         timing: {
           start: startTime,
@@ -331,7 +334,6 @@ export const run = async (args: string[]): Promise<void> => {
   })
 
   if (values.help) {
-    // biome-ignore lint/suspicious/noConsole: CLI help output
     console.log(`
 Usage: agent-eval-harness run [prompts.jsonl] [options]
 
@@ -383,7 +385,7 @@ Examples:
 
   // Load prompts from file or stdin
   const promptsPath = positionals[0]
-  let prompts: Array<{ id: string; input: string | string[]; hint?: string }>
+  let prompts: Array<{ id: string; input: string | string[]; hint?: string; metadata?: Record<string, unknown> }>
 
   if (promptsPath) {
     prompts = await loadPrompts(promptsPath)

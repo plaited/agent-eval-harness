@@ -230,6 +230,7 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
           output,
           hint: promptCase.hint,
           trajectory,
+          metadata: promptCase.metadata,
         })
       }
 
@@ -309,7 +310,6 @@ export const capture = async (args: string[]): Promise<void> => {
   })
 
   if (values.help) {
-    // biome-ignore lint/suspicious/noConsole: CLI help output
     console.log(`
 Usage: agent-eval-harness capture <prompts.jsonl> --schema <schema.json> [options]
 

@@ -91,6 +91,7 @@ const extractFromRaw = (rawOutput: RawOutput, parser: ReturnType<typeof createOu
     output: finalOutput,
     trajectory,
     toolErrors: toolErrors || !!rawOutput.error,
+    metadata: rawOutput.metadata,
     timing: rawOutput.timing,
     ...(rawOutput.error && { error: rawOutput.error }),
   }
@@ -186,7 +187,6 @@ export const extract = async (args: string[]): Promise<void> => {
   })
 
   if (values.help) {
-    // biome-ignore lint/suspicious/noConsole: CLI help output
     console.log(`
 Usage: agent-eval-harness extract [raw.jsonl] --schema <schema.json> [options]
 

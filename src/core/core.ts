@@ -11,7 +11,7 @@
  */
 
 // Loading utilities
-export { loadJsonl, loadPrompts, loadResults } from './loading.ts'
+export { buildResultsIndex, countLines, loadJsonl, loadPrompts, loadResults, streamResults } from './loading.ts'
 // Output utilities
 export { getInputPreview, headTailPreview, logProgress, resolvePath, writeOutput } from './output.ts'
 // Trajectory utilities

@@ -216,6 +216,7 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
             output,
             hint: promptCase.hint,
             trajectory,
+            metadata: promptCase.metadata,
           })
           entry.pass = graderResult.pass
           entry.score = graderResult.score
@@ -310,7 +311,6 @@ export const trials = async (args: string[]): Promise<void> => {
   })
 
   if (values.help) {
-    // biome-ignore lint/suspicious/noConsole: CLI help output
     console.log(`
 Usage: agent-eval-harness trials <prompts.jsonl> --schema <schema.json> [options]
 
