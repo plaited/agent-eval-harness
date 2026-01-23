@@ -7,7 +7,7 @@ The harness uses a "capture once, derive many views" approach. The `capture` com
 The `capture` command always outputs full trajectory JSONL:
 
 ```bash
-agent-eval-harness capture prompts.jsonl bunx claude-code-acp -o results.jsonl
+agent-eval-harness capture prompts.jsonl --schema ./claude-headless.json -o results.jsonl
 ```
 
 ### Schema
@@ -132,7 +132,7 @@ agent-eval-harness summarize results.jsonl --markdown -o results.md
 4. [MESSAGE] <truncated content> [->stepId]
 
 **Output:** <truncated final output>
-**Metadata:** category=ui, agent=claude-code-acp, ...
+**Metadata:** category=ui, agent=claude-headless, ...
 **Tool Errors:** false
 **Duration:** <ms>ms
 
@@ -151,7 +151,7 @@ agent-eval-harness summarize results.jsonl --markdown -o results.md
 The `trials` command produces per-prompt trial results:
 
 ```bash
-agent-eval-harness trials prompts.jsonl bunx claude-code-acp -k 5 --grader ./grader.ts -o trials.jsonl
+agent-eval-harness trials prompts.jsonl --schema ./claude-headless.json -k 5 --grader ./grader.ts -o trials.jsonl
 ```
 
 ### Schema
@@ -228,7 +228,7 @@ The `toolErrors` field indicates whether any tool calls failed during execution:
 **Note:** `toolErrors` only indicates tool-level failures. For semantic pass/fail (did the agent accomplish the task?), use a grader:
 
 ```bash
-agent-eval-harness capture prompts.jsonl bunx claude-code-acp --grader ./grader.ts -o results.jsonl
+agent-eval-harness capture prompts.jsonl --schema ./claude-headless.json --grader ./grader.ts -o results.jsonl
 ```
 
 ## Input Format
@@ -254,7 +254,7 @@ All commands stream output line-by-line as results complete:
 
 ```bash
 # Watch results in real-time
-agent-eval-harness capture prompts.jsonl bunx claude-code-acp --progress -o results.jsonl &
+agent-eval-harness capture prompts.jsonl --schema ./claude-headless.json --progress -o results.jsonl &
 tail -f results.jsonl
 ```
 

@@ -1,6 +1,6 @@
 ---
 name: headless-adapters
-description: Discover, create, and validate headless adapters for agent integration. Includes scaffolding tools and compliance testing for the Agent Client Protocol.
+description: Discover, create, and validate headless adapters for agent integration. Includes scaffolding tools and schema-driven compliance testing.
 compatibility: Bun >= 1.2.9
 ---
 
