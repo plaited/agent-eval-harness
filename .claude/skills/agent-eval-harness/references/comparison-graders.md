@@ -269,37 +269,6 @@ export const grade: ComparisonGrader = async ({ runs }) => {
 | Complex multi-criteria scoring | `custom` (logic-based) |
 | Tool usage analysis | `custom` (see above) |
 
-## Output Format
-
-The compare command outputs a `ComparisonReport` JSON:
-
-```json
-{
-  "meta": {
-    "generatedAt": "2025-01-22T10:30:00Z",
-    "runs": ["baseline", "variant"],
-    "promptCount": 100,
-    "promptsWithAllRuns": 98
-  },
-  "quality": {
-    "baseline": { "avgScore": 0.85, "passRate": 0.82, ... },
-    "variant": { "avgScore": 0.88, "passRate": 0.85, ... }
-  },
-  "performance": {
-    "baseline": { "latency": { "p50": 1200, "p90": 3400, ... } },
-    "variant": { "latency": { "p50": 1100, "p90": 3100, ... } }
-  },
-  "reliability": { ... },
-  "trajectoryInfo": { ... },
-  "headToHead": {
-    "prompts": [ ... ],
-    "pairwise": [
-      { "runA": "baseline", "runB": "variant", "aWins": 35, "bWins": 55, "ties": 8 }
-    ]
-  }
-}
-```
-
 ## Related Documentation
 
 - [inline-graders.md](inline-graders.md) - Single input/output graders
