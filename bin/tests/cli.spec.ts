@@ -219,8 +219,8 @@ const SAMPLE_SUMMARY_JSONL = `{"id":"test-001","input":"Create a button","output
 {"id":"test-002","input":"Fix the bug","output":"I fixed the bug","toolCalls":["Read","Edit"],"duration":2567}
 {"id":"test-003","input":"Broken test","output":"","toolCalls":[],"duration":500}`
 
-const SAMPLE_CAPTURE_JSONL = `{"id":"test-001","input":"Create a button","output":"I created the button","trajectory":[{"type":"thought","content":"I'll create a button template","timestamp":100,"stepId":"test-001-step-1"},{"type":"tool_call","name":"Write","status":"completed","input":{"file_path":"src/button.tsx","content":"export const Button = () => <button>Click</button>"},"output":"File written","duration":234,"timestamp":150,"stepId":"test-001-step-2"},{"type":"message","content":"I created the button","timestamp":500,"stepId":"test-001-step-3"}],"metadata":{"category":"ui","agent":"claude-code-acp"},"timing":{"start":1704067200000,"end":1704067201234,"firstResponse":100},"toolErrors":false}
-{"id":"test-002","input":"Fix the bug","output":"I fixed the bug","trajectory":[{"type":"tool_call","name":"Read","status":"completed","input":{"file_path":"src/app.ts"},"output":"file contents...","duration":100,"timestamp":50,"stepId":"test-002-step-1"},{"type":"tool_call","name":"Edit","status":"completed","input":{"file_path":"src/app.ts","old_string":"bug","new_string":"fix"},"duration":150,"timestamp":200,"stepId":"test-002-step-2"},{"type":"message","content":"I fixed the bug","timestamp":400,"stepId":"test-002-step-3"}],"metadata":{"category":"bugfix","agent":"claude-code-acp"},"timing":{"start":1704067300000,"end":1704067302567},"toolErrors":false}`
+const SAMPLE_CAPTURE_JSONL = `{"id":"test-001","input":"Create a button","output":"I created the button","trajectory":[{"type":"thought","content":"I'll create a button template","timestamp":100,"stepId":"test-001-step-1"},{"type":"tool_call","name":"Write","status":"completed","input":{"file_path":"src/button.tsx","content":"export const Button = () => <button>Click</button>"},"output":"File written","duration":234,"timestamp":150,"stepId":"test-001-step-2"},{"type":"message","content":"I created the button","timestamp":500,"stepId":"test-001-step-3"}],"metadata":{"category":"ui","agent":"claude-headless"},"timing":{"start":1704067200000,"end":1704067201234,"firstResponse":100},"toolErrors":false}
+{"id":"test-002","input":"Fix the bug","output":"I fixed the bug","trajectory":[{"type":"tool_call","name":"Read","status":"completed","input":{"file_path":"src/app.ts"},"output":"file contents...","duration":100,"timestamp":50,"stepId":"test-002-step-1"},{"type":"tool_call","name":"Edit","status":"completed","input":{"file_path":"src/app.ts","old_string":"bug","new_string":"fix"},"duration":150,"timestamp":200,"stepId":"test-002-step-2"},{"type":"message","content":"I fixed the bug","timestamp":400,"stepId":"test-002-step-3"}],"metadata":{"category":"bugfix","agent":"claude-headless"},"timing":{"start":1704067300000,"end":1704067302567},"toolErrors":false}`
 
 // ============================================================================
 // Downstream Pattern Tests
@@ -429,7 +429,7 @@ describe('MCP server config parsing', () => {
   test('parses stdio MCP server config', () => {
     const json = '{"type":"stdio","name":"fs","command":"mcp-filesystem","args":["/data"],"env":[]}'
     const proc = Bun.spawn(
-      ['bun', CLI_PATH, 'capture', '/tmp/test.jsonl', 'bunx', 'claude-code-acp', '--mcp-server', json, '--help'],
+      ['bun', CLI_PATH, 'capture', '/tmp/test.jsonl', '--schema', './test-schema.json', '--mcp-server', json, '--help'],
       {
         stdout: 'pipe',
         stderr: 'pipe',
@@ -444,7 +444,7 @@ describe('MCP server config parsing', () => {
     const json =
       '{"type":"http","name":"api","url":"https://example.com/mcp","headers":[{"name":"Authorization","value":"Bearer token"}]}'
     const proc = Bun.spawn(
-      ['bun', CLI_PATH, 'capture', '/tmp/test.jsonl', 'bunx', 'claude-code-acp', '--mcp-server', json, '--help'],
+      ['bun', CLI_PATH, 'capture', '/tmp/test.jsonl', '--schema', './test-schema.json', '--mcp-server', json, '--help'],
       {
         stdout: 'pipe',
         stderr: 'pipe',
@@ -464,8 +464,8 @@ describe('MCP server config parsing', () => {
         CLI_PATH,
         'capture',
         '/tmp/test.jsonl',
-        'bunx',
-        'claude-code-acp',
+        '--schema',
+        './test-schema.json',
         '--mcp-server',
         json1,
         '--mcp-server',

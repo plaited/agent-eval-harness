@@ -4,7 +4,7 @@
 # Copy this to your project and customize as needed.
 #
 # Usage:
-#   docker build -f Dockerfile.acp -t agent-eval-harness .
+#   docker build -f Dockerfile.eval -t agent-eval-harness .
 #   docker run --rm -e ANTHROPIC_API_KEY agent-eval-harness bunx @plaited/agent-eval-harness capture prompts.jsonl --schema ./claude.json
 
 FROM oven/bun:1.2.9
