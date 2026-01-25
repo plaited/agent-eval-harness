@@ -25,7 +25,7 @@ export ANTHROPIC_API_KEY=sk-...   # For Claude
 export GEMINI_API_KEY=...         # For Gemini
 ```
 
-Pre-built schemas are available in `.claude/skills/headless-adapters/schemas/` for Claude and Gemini.
+Pre-built schemas are available in `.plaited/skills/headless-adapters/schemas/` for Claude and Gemini.
 
 ### Core Commands
 
@@ -85,7 +85,7 @@ bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl -o comparison.jso
 **Install skills** for use with AI coding agents:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/plaited/skills-installer/main/install.sh | bash -s -- --agent <agent-name> --project agent-eval-harness
+curl -fsSL https://raw.githubusercontent.com/plaited/skills-installer/main/install.sh | bash -s -- --agents <agent-name> --project agent-eval-harness
 ```
 
 Replace `<agent-name>` with your agent: `claude`, `cursor`, `copilot`, `opencode`, `amp`, `goose`, `factory`
@@ -253,18 +253,20 @@ cat results.jsonl | your-scoring-script.ts
 ## Development
 
 ```bash
-bun install          # Install dependencies
-bun run check        # Type check + lint + format
-bun test             # Run unit tests
+bun install               # Install dependencies
+bun run check             # Type check + lint + format
+bun test                  # Run unit tests
+bun run test:integration  # Run integration tests (requires API keys)
 
-# Run integration tests in Docker (requires API keys)
-ANTHROPIC_API_KEY=sk-... docker compose -f docker-compose.test.yml run --rm test
+# Alternative: Run integration tests in Docker
+ANTHROPIC_API_KEY=sk-... GEMINI_API_KEY=... \
+  docker compose -f docker-compose.test.yml run --rm test
 ```
 
 ## Requirements
 
 - **Runtime:** Bun >= 1.2.9
-- **Schema:** JSON schema describing CLI agent interaction (see `.claude/skills/headless-adapters/schemas/`)
+- **Schema:** JSON schema describing CLI agent interaction (see `.plaited/skills/headless-adapters/schemas/`)
 - **API Key:** `ANTHROPIC_API_KEY` for Claude, `GEMINI_API_KEY` for Gemini
 
 ## License
