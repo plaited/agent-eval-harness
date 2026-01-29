@@ -777,3 +777,154 @@ export const ComparisonReportSchema = z.object({
 
 /** Comparison report type */
 export type ComparisonReport = z.infer<typeof ComparisonReportSchema>
+
+// ============================================================================
+// Trials Comparison Report Schemas
+// ============================================================================
+
+/**
+ * Capability metrics for trials comparison (passAtK-based).
+ *
+ * @remarks
+ * Measures whether the agent CAN solve the task (at least once in K tries).
+ * Higher passAtK means the agent has the capability to solve the task.
+ */
+export const TrialsCapabilityMetricsSchema = z.object({
+  /** Average passAtK across all prompts */
+  avgPassAtK: z.number(),
+  /** Median passAtK */
+  medianPassAtK: z.number(),
+  /** 25th percentile passAtK */
+  p25PassAtK: z.number(),
+  /** 75th percentile passAtK */
+  p75PassAtK: z.number(),
+})
+
+/** Trials capability metrics type */
+export type TrialsCapabilityMetrics = z.infer<typeof TrialsCapabilityMetricsSchema>
+
+/**
+ * Reliability metrics for trials comparison (passExpK-based).
+ *
+ * @remarks
+ * Measures whether the agent CONSISTENTLY solves the task (all K tries).
+ * Higher passExpK means the agent reliably solves the task every time.
+ */
+export const TrialsReliabilityMetricsSchema = z.object({
+  /** Average passExpK across all prompts */
+  avgPassExpK: z.number(),
+  /** Median passExpK */
+  medianPassExpK: z.number(),
+  /** 25th percentile passExpK */
+  p25PassExpK: z.number(),
+  /** 75th percentile passExpK */
+  p75PassExpK: z.number(),
+})
+
+/** Trials reliability metrics type */
+export type TrialsReliabilityMetrics = z.infer<typeof TrialsReliabilityMetricsSchema>
+
+/**
+ * Flakiness metrics for trials comparison.
+ *
+ * @remarks
+ * Flakiness = passAtK - passExpK, measuring the gap between capability and reliability.
+ * A high flakiness score means the agent can sometimes solve the task but not consistently.
+ */
+export const TrialsFlakinessMetricsSchema = z.object({
+  /** Average flakiness across all prompts */
+  avgFlakiness: z.number(),
+  /** Median flakiness */
+  medianFlakiness: z.number(),
+  /** Number of prompts with non-zero flakiness */
+  flakyPromptCount: z.number(),
+  /** Top flaky prompts by flakiness score */
+  topFlakyPrompts: z.array(
+    z.object({
+      /** Prompt identifier */
+      id: z.string(),
+      /** Flakiness score (passAtK - passExpK) */
+      flakiness: z.number(),
+    }),
+  ),
+})
+
+/** Trials flakiness metrics type */
+export type TrialsFlakinessMetrics = z.infer<typeof TrialsFlakinessMetricsSchema>
+
+/**
+ * Per-prompt metrics for trials comparison drill-down.
+ */
+export const TrialsPromptComparisonSchema = z.object({
+  /** Prompt identifier */
+  id: z.string(),
+  /** Run label of the capability winner, or null if tie */
+  capabilityWinner: z.string().nullable(),
+  /** Run label of the reliability winner, or null if tie */
+  reliabilityWinner: z.string().nullable(),
+  /** passAtK by run label */
+  passAtK: z.record(z.string(), z.number()),
+  /** passExpK by run label */
+  passExpK: z.record(z.string(), z.number()),
+  /** Flakiness by run label */
+  flakiness: z.record(z.string(), z.number()),
+})
+
+/** Trials prompt comparison type */
+export type TrialsPromptComparison = z.infer<typeof TrialsPromptComparisonSchema>
+
+/**
+ * Metadata for trials comparison report.
+ */
+export const TrialsComparisonMetaSchema = z.object({
+  /** ISO timestamp when report was generated */
+  generatedAt: z.string(),
+  /** Run labels included in comparison */
+  runs: z.array(z.string()),
+  /** Total prompts compared */
+  promptCount: z.number(),
+  /** Number of trials per prompt (k value) */
+  trialsPerPrompt: z.number(),
+  /** Input format indicator */
+  inputFormat: z.literal('trials'),
+})
+
+/** Trials comparison meta type */
+export type TrialsComparisonMeta = z.infer<typeof TrialsComparisonMetaSchema>
+
+/**
+ * Trials comparison report schema.
+ *
+ * @remarks
+ * Aggregates trials comparison output across capability, reliability, and flakiness dimensions.
+ * Used when comparing TrialResult JSONL files instead of CaptureResult files.
+ *
+ * Key metrics:
+ * - Capability: passAtK - can the agent solve this at least once?
+ * - Reliability: passExpK - does the agent solve this consistently?
+ * - Flakiness: passAtK - passExpK - how inconsistent is the agent?
+ */
+export const TrialsComparisonReportSchema = z.object({
+  /** Report metadata */
+  meta: TrialsComparisonMetaSchema,
+  /** Capability metrics by run label */
+  capability: z.record(z.string(), TrialsCapabilityMetricsSchema),
+  /** Reliability metrics by run label */
+  reliability: z.record(z.string(), TrialsReliabilityMetricsSchema),
+  /** Flakiness metrics by run label */
+  flakiness: z.record(z.string(), TrialsFlakinessMetricsSchema),
+  /** Head-to-head comparison details */
+  headToHead: z.object({
+    /** Pairwise wins by capability */
+    capability: z.array(PairwiseComparisonSchema),
+    /** Pairwise wins by reliability */
+    reliability: z.array(PairwiseComparisonSchema),
+    /** Pairwise wins by overall weighted score */
+    overall: z.array(PairwiseComparisonSchema),
+  }),
+  /** Per-prompt breakdown for drill-down (optional, can be large) */
+  perPrompt: z.array(TrialsPromptComparisonSchema).optional(),
+})
+
+/** Trials comparison report type */
+export type TrialsComparisonReport = z.infer<typeof TrialsComparisonReportSchema>

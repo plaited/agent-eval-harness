@@ -42,6 +42,8 @@ import type {
   TrajectoryInfo,
   TrajectoryRichness,
 } from '../schemas.ts'
+import { type CompareInputFormat, detectAndValidateFormat } from './compare-format-detection.ts'
+import { runTrialsCompare } from './compare-trials.ts'
 import type {
   CompareConfig,
   ComparisonGrader,
@@ -647,6 +649,7 @@ export const compare = async (args: string[]): Promise<void> => {
       strategy: { type: 'string', short: 's' },
       output: { type: 'string', short: 'o' },
       format: { type: 'string', short: 'f' },
+      'input-format': { type: 'string' },
       progress: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h' },
     },
@@ -658,6 +661,7 @@ export const compare = async (args: string[]): Promise<void> => {
 Usage: agent-eval-harness compare [files...] [options]
 
 Compare multiple runs of the same prompts and generate aggregate report.
+Supports both CaptureResult (single-run) and TrialResult (multi-run reliability) formats.
 
 Arguments:
   files...          Result files to compare (positional, unlimited)
@@ -668,29 +672,46 @@ Options:
   -g, --grader      Path to custom grader (required if strategy=custom)
   -o, --output      Output file (default: stdout)
   -f, --format      Output format: json (default) or markdown
+  --input-format    Input format: auto (default), capture, or trials
   --progress        Show progress to stderr
   -h, --help        Show this help message
 
+Input Formats:
+  auto        Auto-detect from file content (default)
+  capture     CaptureResult format (trajectory/timing fields)
+  trials      TrialResult format (trials/k fields) for pass@k analysis
+
 Built-in Strategies:
-  weighted      Configurable weights for quality, latency, reliability
-                Customize via: COMPARE_QUALITY, COMPARE_LATENCY, COMPARE_RELIABILITY
-  statistical   Bootstrap sampling for confidence intervals
-                Customize via: COMPARE_BOOTSTRAP_ITERATIONS
+  For CaptureResult (capture format):
+    weighted      Configurable weights for quality, latency, reliability
+                  Env vars: COMPARE_QUALITY, COMPARE_LATENCY, COMPARE_RELIABILITY
+    statistical   Bootstrap sampling for confidence intervals
+                  Env var: COMPARE_BOOTSTRAP_ITERATIONS
+
+  For TrialResult (trials format):
+    weighted      Configurable weights for capability, reliability, consistency
+                  Env vars: COMPARE_CAPABILITY, COMPARE_RELIABILITY, COMPARE_CONSISTENCY
+    statistical   Bootstrap sampling for passAtK confidence intervals
+                  Env var: COMPARE_BOOTSTRAP_ITERATIONS
 
 Custom Grader:
   Must export 'grade' or 'compare' function with signature:
-    (params: ComparisonGraderInput) => Promise<ComparisonGraderResult>
+    CaptureResult: (params: ComparisonGraderInput) => Promise<ComparisonGraderResult>
+    TrialResult:   (params: TrialsComparisonGraderInput) => Promise<ComparisonGraderResult>
 
 Examples:
-  # Default: weighted strategy with JSON output
+  # Default: auto-detect format, weighted strategy, JSON output
   agent-eval-harness compare run1.jsonl run2.jsonl -o comparison.json
+
+  # Explicit trials format for pass@k comparison
+  agent-eval-harness compare trials1.jsonl trials2.jsonl --input-format trials -o comparison.json
+
+  # Trials comparison with custom weights
+  COMPARE_CAPABILITY=0.5 COMPARE_RELIABILITY=0.3 COMPARE_CONSISTENCY=0.2 \\
+    agent-eval-harness compare trials1.jsonl trials2.jsonl -o comparison.json
 
   # Statistical significance strategy
   agent-eval-harness compare run1.jsonl run2.jsonl --strategy statistical -o comparison.json
-
-  # Custom weights
-  COMPARE_QUALITY=0.7 COMPARE_LATENCY=0.2 COMPARE_RELIABILITY=0.1 \\
-    agent-eval-harness compare run1.jsonl run2.jsonl -o comparison.json
 
   # Markdown report
   agent-eval-harness compare run1.jsonl run2.jsonl --format markdown -o report.md
@@ -749,19 +770,54 @@ Examples:
     process.exit(1)
   }
 
-  // Validate format (explicit format takes precedence, otherwise infer from extension)
+  // Validate output format (explicit format takes precedence, otherwise infer from extension)
   const format = inferFormat(values.output, values.format)
   if (values.format && !['json', 'markdown'].includes(values.format)) {
     console.error(`Error: Invalid format '${values.format}'. Use: json or markdown`)
     process.exit(1)
   }
 
-  await runCompare({
-    runs,
-    strategy,
-    graderPath: values.grader,
-    outputPath: values.output,
-    progress: values.progress,
-    format,
-  })
+  // Validate input format
+  const inputFormatArg = values['input-format']
+  if (inputFormatArg && !['auto', 'capture', 'trials'].includes(inputFormatArg)) {
+    console.error(`Error: Invalid input-format '${inputFormatArg}'. Use: auto, capture, or trials`)
+    process.exit(1)
+  }
+
+  // Detect or use specified input format
+  let inputFormat: CompareInputFormat
+  try {
+    if (inputFormatArg === 'capture') {
+      inputFormat = 'capture'
+    } else if (inputFormatArg === 'trials') {
+      inputFormat = 'trials'
+    } else {
+      // Auto-detect from file content
+      inputFormat = await detectAndValidateFormat(runs.map((r) => r.path))
+    }
+  } catch (error) {
+    console.error(`Error: ${error instanceof Error ? error.message : error}`)
+    process.exit(1)
+  }
+
+  // Route to appropriate comparison function based on input format
+  if (inputFormat === 'trials') {
+    await runTrialsCompare({
+      runs,
+      strategy,
+      graderPath: values.grader,
+      outputPath: values.output,
+      progress: values.progress,
+      format,
+    })
+  } else {
+    await runCompare({
+      runs,
+      strategy,
+      graderPath: values.grader,
+      outputPath: values.output,
+      progress: values.progress,
+      format,
+    })
+  }
 }

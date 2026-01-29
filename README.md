@@ -78,6 +78,9 @@ cat prompts.jsonl | \
 
 # Compare runs (built-in strategies: weighted, statistical, custom)
 bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl -o comparison.json
+
+# Compare trials for pass@k reliability analysis (auto-detects format)
+bunx @plaited/agent-eval-harness compare trials1.jsonl trials2.jsonl -o comparison.json
 ```
 
 ## Skills for AI Agents

@@ -10,7 +10,7 @@
  * @packageDocumentation
  */
 
-import type { GraderResult, TrajectoryStep } from '../schemas.ts'
+import type { GraderResult, TrajectoryStep, TrialEntry } from '../schemas.ts'
 
 /**
  * Raw output from the `run` command.
@@ -272,3 +272,54 @@ export type ComparisonResult = {
   /** Optional reasoning */
   reasoning?: string
 }
+
+// ============================================================================
+// Trials Comparison Types
+// ============================================================================
+
+/**
+ * Run data for trials comparison.
+ *
+ * @remarks
+ * Contains the trials-specific metrics (passAtK, passExpK) plus
+ * the individual trial entries for deeper analysis.
+ */
+export type TrialsComparisonRunData = {
+  /** Simple pass rate: passes / k */
+  passRate?: number
+  /** pass@k: probability of at least one pass in k samples */
+  passAtK?: number
+  /** pass^k: probability of all k samples passing */
+  passExpK?: number
+  /** Number of trials (k) */
+  k: number
+  /** Individual trial results */
+  trials: TrialEntry[]
+}
+
+/**
+ * Input to trials comparison grader function.
+ *
+ * @remarks
+ * Provides all runs' trial results for a single prompt ID
+ * so the grader can compare capability and reliability.
+ */
+export type TrialsComparisonGraderInput = {
+  /** Test case identifier */
+  id: string
+  /** Original prompt input */
+  input: string | string[]
+  /** Grader context hint */
+  hint?: string
+  /** Results keyed by run label */
+  runs: Record<string, TrialsComparisonRunData>
+}
+
+/**
+ * Trials comparison grader function type.
+ *
+ * @remarks
+ * User-provided graders implement this interface to compare
+ * multiple runs of the same prompt using trials data.
+ */
+export type TrialsComparisonGrader = (params: TrialsComparisonGraderInput) => Promise<ComparisonGraderResult>

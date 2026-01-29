@@ -318,16 +318,16 @@ bunx @plaited/agent-eval-harness format results.jsonl --style jsonl
 
 ### Compare Command
 
-Compare multiple runs of the same prompts and generate aggregate reports:
+Compare multiple runs of the same prompts. Supports both **CaptureResult** (single-run) and **TrialResult** (multi-run reliability) formats with auto-detection.
 
 ```bash
-# Default: weighted strategy with JSON output
+# Default: auto-detect format, weighted strategy, JSON output
 bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl -o comparison.json
 
 # Statistical significance strategy
 bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl --strategy statistical -o comparison.json
 
-# Custom weights via environment variables
+# Custom weights via environment variables (CaptureResult)
 COMPARE_QUALITY=0.7 COMPARE_LATENCY=0.2 COMPARE_RELIABILITY=0.1 \
   bunx @plaited/agent-eval-harness compare run1.jsonl run2.jsonl -o comparison.json
 
@@ -351,17 +351,51 @@ bunx @plaited/agent-eval-harness compare \
 - Same agent, different model versions
 - Different agents entirely
 
+### Trials Comparison (pass@k Analysis)
+
+Compare TrialResult files for reliability analysis:
+
+```bash
+# Auto-detect trials format
+bunx @plaited/agent-eval-harness compare trials1.jsonl trials2.jsonl -o comparison.json
+
+# Explicit format (skip auto-detection)
+bunx @plaited/agent-eval-harness compare trials1.jsonl trials2.jsonl --input-format trials -o comparison.json
+
+# Custom weights for trials comparison
+COMPARE_CAPABILITY=0.5 COMPARE_RELIABILITY=0.3 COMPARE_CONSISTENCY=0.2 \
+  bunx @plaited/agent-eval-harness compare trials1.jsonl trials2.jsonl -o comparison.json
+```
+
+**Trials metrics:**
+
+| Metric | Description | Formula |
+|--------|-------------|---------|
+| **Capability** (passAtK) | Can solve at least once in K tries | `1 - (1-p)^k` |
+| **Reliability** (passExpK) | Solves consistently every time | `p^k` |
+| **Flakiness** | Gap between capability and reliability | `passAtK - passExpK` |
+
 ### Built-in Comparison Strategies
 
-| Strategy | Description | When to Use |
-|----------|-------------|-------------|
-| `weighted` (default) | Configurable weights for quality, latency, reliability | Quick comparisons |
-| `statistical` | Bootstrap sampling for confidence intervals | A/B testing with significance |
-| `custom` | Your own LLM-as-Judge or logic-based grader | Semantic evaluation |
+**For CaptureResult (single-run):**
+
+| Strategy | Description | Env Vars |
+|----------|-------------|----------|
+| `weighted` (default) | Quality, latency, reliability | `COMPARE_QUALITY`, `COMPARE_LATENCY`, `COMPARE_RELIABILITY` |
+| `statistical` | Bootstrap for confidence intervals | `COMPARE_BOOTSTRAP_ITERATIONS` |
+| `custom` | Your own grader | `--grader path` |
+
+**For TrialResult (multi-run):**
+
+| Strategy | Description | Env Vars |
+|----------|-------------|----------|
+| `weighted` (default) | Capability, reliability, consistency | `COMPARE_CAPABILITY`, `COMPARE_RELIABILITY`, `COMPARE_CONSISTENCY` |
+| `statistical` | Bootstrap passAtK confidence intervals | `COMPARE_BOOTSTRAP_ITERATIONS` |
+| `custom` | Your own grader | `--grader path` |
 
 ### Comparison Report Output
 
-The compare command outputs a holistic `ComparisonReport` JSON:
+**CaptureResult format** outputs `ComparisonReport`:
 
 ```json
 {
@@ -373,22 +407,56 @@ The compare command outputs a holistic `ComparisonReport` JSON:
 }
 ```
 
+**TrialResult format** outputs `TrialsComparisonReport`:
+
+```json
+{
+  "meta": { "generatedAt": "...", "runs": ["claude", "gemini"], "promptCount": 50, "trialsPerPrompt": 5, "inputFormat": "trials" },
+  "capability": { "claude": { "avgPassAtK": 0.92, "medianPassAtK": 0.95 }, ... },
+  "reliability": { "claude": { "avgPassExpK": 0.78, "medianPassExpK": 0.82 }, ... },
+  "flakiness": { "claude": { "avgFlakiness": 0.14, "flakyPromptCount": 12 }, ... },
+  "headToHead": {
+    "capability": [{ "runA": "claude", "runB": "gemini", "aWins": 28, "bWins": 18, "ties": 4 }],
+    "reliability": [...],
+    "overall": [...]
+  }
+}
+```
+
 See [comparison-graders.md](references/comparison-graders.md) for complete comparison grader documentation including LLM-as-Judge patterns.
 
 ### Comparison Grader Interface
+
+**CaptureResult grader:**
 
 ```typescript
 import type { ComparisonGrader } from '@plaited/agent-eval-harness/pipeline'
 
 export const grade: ComparisonGrader = async ({ id, input, hint, runs }) => {
   // runs is Record<string, { output, trajectory?, score?, duration?, toolErrors? }>
-  // Return rankings from best to worst
   return {
     rankings: [
       { run: 'with-mcp', rank: 1, score: 0.9 },
       { run: 'vanilla', rank: 2, score: 0.7 },
     ],
     reasoning: 'MCP run produced more accurate output'
+  }
+}
+```
+
+**TrialResult grader:**
+
+```typescript
+import type { TrialsComparisonGrader } from '@plaited/agent-eval-harness/pipeline'
+
+export const grade: TrialsComparisonGrader = async ({ id, input, hint, runs }) => {
+  // runs is Record<string, { passAtK?, passExpK?, k, trials }>
+  return {
+    rankings: [
+      { run: 'claude', rank: 1, score: 0.92 },
+      { run: 'gemini', rank: 2, score: 0.85 },
+    ],
+    reasoning: 'Claude has higher reliability with lower flakiness'
   }
 }
 ```
