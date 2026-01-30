@@ -107,6 +107,7 @@ The statistical strategy adds `confidenceIntervals` to quality and performance m
   },
   "reliability": {
     "run-a": {
+      "type": "trial",
       "avgPassExpK": 0.78,
       "confidenceIntervals": {
         "avgPassExpK": [0.72, 0.84]

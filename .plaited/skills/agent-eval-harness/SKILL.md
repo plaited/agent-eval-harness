@@ -402,7 +402,7 @@ COMPARE_CAPABILITY=0.5 COMPARE_RELIABILITY=0.3 COMPARE_CONSISTENCY=0.2 \
   "meta": { "generatedAt": "...", "runs": ["baseline", "variant"], "promptCount": 100 },
   "quality": { "baseline": { "avgScore": 0.85, "passRate": 0.82 }, "variant": { ... } },
   "performance": { "baseline": { "latency": { "p50": 1200, "p90": 3400 } }, ... },
-  "reliability": { "baseline": { "toolErrors": 5, "completionRate": 0.99 }, ... },
+  "reliability": { "baseline": { "type": "run", "toolErrors": 5, "completionRate": 0.99 }, ... },
   "headToHead": { "pairwise": [{ "runA": "baseline", "runB": "variant", "aWins": 35, "bWins": 55 }] }
 }
 ```
@@ -438,7 +438,7 @@ With `--strategy statistical`, quality and performance metrics include 95% confi
 {
   "meta": { "generatedAt": "...", "runs": ["claude", "gemini"], "promptCount": 50, "trialsPerPrompt": 5, "inputFormat": "trials" },
   "capability": { "claude": { "avgPassAtK": 0.92, "medianPassAtK": 0.95 }, ... },
-  "reliability": { "claude": { "avgPassExpK": 0.78, "medianPassExpK": 0.82 }, ... },
+  "reliability": { "claude": { "type": "trial", "avgPassExpK": 0.78, "medianPassExpK": 0.82 }, ... },
   "flakiness": { "claude": { "avgFlakiness": 0.14, "flakyPromptCount": 12 }, ... },
   "headToHead": {
     "capability": [{ "runA": "claude", "runB": "gemini", "aWins": 28, "bWins": 18, "ties": 4 }],
@@ -460,6 +460,7 @@ With `--strategy statistical`, capability and reliability metrics include 95% co
   },
   "reliability": {
     "claude": {
+      "type": "trial",
       "avgPassExpK": 0.78,
       "confidenceIntervals": { "avgPassExpK": [0.72, 0.84] }
     }
@@ -749,6 +750,34 @@ const result = CaptureResultSchema.parse(jsonData)
 // Generate JSON Schema (Zod 4 native)
 import { z } from 'zod'
 const jsonSchema = z.toJSONSchema(CaptureResultSchema)
+```
+
+### Discriminated Unions for Reliability Metrics
+
+Reliability metrics include a `type` discriminator for type-safe parsing:
+
+```typescript
+import { z } from 'zod'
+import {
+  ReliabilityMetricsSchema,       // type: 'run'
+  TrialsReliabilityMetricsSchema  // type: 'trial'
+} from '@plaited/agent-eval-harness/schemas'
+
+// Create a unified schema for both metric types
+const UnifiedReliabilitySchema = z.discriminatedUnion('type', [
+  ReliabilityMetricsSchema,
+  TrialsReliabilityMetricsSchema,
+])
+
+// Type-safe parsing with automatic narrowing
+const metrics = UnifiedReliabilitySchema.parse(data)
+if (metrics.type === 'run') {
+  // TypeScript knows: ReliabilityMetrics
+  console.log(metrics.toolErrors, metrics.completionRate)
+} else {
+  // TypeScript knows: TrialsReliabilityMetrics
+  console.log(metrics.avgPassExpK, metrics.medianPassExpK)
+}
 ```
 
 Or export JSON schemas for non-TypeScript tools:
