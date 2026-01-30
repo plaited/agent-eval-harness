@@ -688,6 +688,8 @@ export type PerformanceMetrics = z.infer<typeof PerformanceMetricsSchema>
  * Reliability metrics for a single run in comparison.
  */
 export const ReliabilityMetricsSchema = z.object({
+  /** Discriminator for run-based reliability metrics */
+  type: z.literal('run'),
   /** Count of runs with toolErrors=true */
   toolErrors: z.number(),
   /** Percentage of runs with tool errors */
@@ -874,6 +876,8 @@ export type TrialsReliabilityConfidenceIntervals = z.infer<typeof TrialsReliabil
  * Higher passExpK means the agent reliably solves the task every time.
  */
 export const TrialsReliabilityMetricsSchema = z.object({
+  /** Discriminator for trial-based reliability metrics */
+  type: z.literal('trial'),
   /** Average passExpK across all prompts */
   avgPassExpK: z.number(),
   /** Median passExpK */

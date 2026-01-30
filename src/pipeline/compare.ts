@@ -464,6 +464,7 @@ export const runCompare = async (config: ExtendedCompareConfig): Promise<Compari
     const completedCount = results.filter((r) => r.output && !r.errors?.length).length
 
     reliability[label] = {
+      type: 'run',
       toolErrors: toolErrorCount,
       toolErrorRate: results.length > 0 ? toolErrorCount / results.length : 0,
       timeouts: timeoutCount,

@@ -101,6 +101,10 @@ describe('runCompare statistical strategy', () => {
     const passRateCI = highQuality?.confidenceIntervals?.passRate
     expect(passRateCI).toHaveLength(2)
     expect(passRateCI?.[0]).toBeLessThanOrEqual(passRateCI?.[1] ?? 0)
+
+    // Verify reliability metrics include type discriminator
+    expect(report.reliability.high?.type).toBe('run')
+    expect(report.reliability.low?.type).toBe('run')
   })
 
   test('computes confidence intervals for performance metrics', async () => {

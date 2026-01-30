@@ -108,6 +108,8 @@ describe('runTrialsCompare', () => {
     expect(report.meta.promptCount).toBe(2)
     expect(report.capability).toBeDefined()
     expect(report.reliability).toBeDefined()
+    expect(report.reliability.baseline?.type).toBe('trial')
+    expect(report.reliability.variant?.type).toBe('trial')
     expect(report.flakiness).toBeDefined()
     expect(report.headToHead.capability.length).toBeGreaterThan(0)
 
@@ -284,6 +286,7 @@ describe('runTrialsCompare', () => {
     // Verify confidence intervals are computed for reliability
     const reliableRel = report.reliability.reliable
     expect(reliableRel).toBeDefined()
+    expect(reliableRel?.type).toBe('trial')
     expect(reliableRel?.confidenceIntervals).toBeDefined()
     expect(reliableRel?.confidenceIntervals?.avgPassExpK).toBeDefined()
 

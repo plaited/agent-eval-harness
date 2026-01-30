@@ -195,13 +195,14 @@ const computeReliabilityMetrics = (results: TrialResult[]): TrialsReliabilityMet
   const passExpKValues = results.map((r) => r.passExpK ?? 0)
 
   if (passExpKValues.length === 0) {
-    return { avgPassExpK: 0, medianPassExpK: 0, p25PassExpK: 0, p75PassExpK: 0 }
+    return { type: 'trial', avgPassExpK: 0, medianPassExpK: 0, p25PassExpK: 0, p75PassExpK: 0 }
   }
 
   const sorted = [...passExpKValues].sort((a, b) => a - b)
   const sum = passExpKValues.reduce((a, b) => a + b, 0)
 
   return {
+    type: 'trial',
     avgPassExpK: sum / passExpKValues.length,
     medianPassExpK: percentile(sorted, 0.5),
     p25PassExpK: percentile(sorted, 0.25),
