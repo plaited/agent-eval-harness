@@ -20,9 +20,7 @@ import type {
   TrialsComparisonGrader,
   TrialsComparisonGraderInput,
 } from '../pipeline/pipeline.types.ts'
-
-/** Default number of bootstrap iterations */
-const DEFAULT_ITERATIONS = 1000
+import { DEFAULT_ITERATIONS, getBootstrapConfigFromEnv } from './bootstrap.ts'
 
 /**
  * Bootstrap confidence interval result.
@@ -82,16 +80,13 @@ const bootstrapPassAtK = (trials: number[], k: number, iterations: number): Boot
 }
 
 /**
- * Get bootstrap iterations from environment variable.
+ * Get bootstrap iterations from environment or use default.
  *
  * @returns Number of bootstrap iterations
  */
-const getIterationsFromEnv = (): number => {
-  const envValue = process.env.COMPARE_BOOTSTRAP_ITERATIONS
-  if (!envValue) return DEFAULT_ITERATIONS
-
-  const parsed = Number.parseInt(envValue, 10)
-  return Number.isNaN(parsed) || parsed < 100 ? DEFAULT_ITERATIONS : parsed
+const getIterations = (): number => {
+  const config = getBootstrapConfigFromEnv()
+  return config.iterations ?? DEFAULT_ITERATIONS
 }
 
 /**
@@ -109,7 +104,7 @@ const getIterationsFromEnv = (): number => {
 export const grade: TrialsComparisonGrader = async ({
   runs,
 }: TrialsComparisonGraderInput): Promise<ComparisonGraderResult> => {
-  const iterations = getIterationsFromEnv()
+  const iterations = getIterations()
 
   // Collect pass/fail outcomes for each run
   const runStats = Object.entries(runs).map(([label, run]) => {

@@ -16,6 +16,7 @@
  */
 
 import { logProgress, writeOutput } from '../core.ts'
+import { bootstrap, getBootstrapConfigFromEnv } from '../graders/bootstrap.ts'
 import { grade as statisticalGrade } from '../graders/trials-compare-statistical.ts'
 import { grade as weightedGrade } from '../graders/trials-compare-weighted.ts'
 import type {
@@ -407,6 +408,34 @@ export const runTrialsCompare = async (config: TrialsCompareConfig): Promise<Tri
     flakiness[label] = computeFlakinessMetrics(results)
   }
 
+  // Compute confidence intervals when using statistical strategy
+  if (strategy === 'statistical') {
+    const bootstrapConfig = getBootstrapConfigFromEnv()
+
+    for (const label of runLabels) {
+      const resultsMap = runResults[label] ?? new Map()
+      const results = [...resultsMap.values()]
+      const passAtKValues = results.map((r) => r.passAtK ?? 0)
+      const passExpKValues = results.map((r) => r.passExpK ?? 0)
+
+      // Capability CIs
+      const capabilityMetrics = capability[label]
+      if (capabilityMetrics) {
+        capabilityMetrics.confidenceIntervals = {
+          avgPassAtK: bootstrap(passAtKValues, bootstrapConfig).ci,
+        }
+      }
+
+      // Reliability CIs
+      const reliabilityMetrics = reliability[label]
+      if (reliabilityMetrics) {
+        reliabilityMetrics.confidenceIntervals = {
+          avgPassExpK: bootstrap(passExpKValues, bootstrapConfig).ci,
+        }
+      }
+    }
+  }
+
   // Compute pairwise comparisons
   const capabilityPairwise: PairwiseComparison[] = []
   const reliabilityPairwise: PairwiseComparison[] = []
@@ -516,6 +545,18 @@ export const runTrialsCompare = async (config: TrialsCompareConfig): Promise<Tri
 }
 
 /**
+ * Format confidence interval as string.
+ *
+ * @param ci - Confidence interval [lower, upper]
+ * @param decimals - Number of decimal places
+ * @returns Formatted CI string or empty string if undefined
+ */
+const formatCI = (ci: [number, number] | undefined, decimals: number = 3): string => {
+  if (!ci) return ''
+  return `[${ci[0].toFixed(decimals)}, ${ci[1].toFixed(decimals)}]`
+}
+
+/**
  * Format trials comparison report as markdown.
  *
  * @param report - Trials comparison report
@@ -531,27 +572,52 @@ const formatTrialsReportAsMarkdown = (report: TrialsComparisonReport): string =>
   lines.push(`Prompts: ${report.meta.promptCount} | Trials per prompt: ${report.meta.trialsPerPrompt}`)
   lines.push('')
 
+  // Check if any run has confidence intervals (statistical strategy was used)
+  const hasCIs = Object.values(report.capability).some((c) => c.confidenceIntervals)
+
   // Capability table
   lines.push('## Capability (passAtK)')
   lines.push('')
-  lines.push('| Run | Avg | Median | P25 | P75 |')
-  lines.push('|-----|-----|--------|-----|-----|')
-  for (const [label, c] of Object.entries(report.capability)) {
-    lines.push(
-      `| ${label} | ${c.avgPassAtK.toFixed(3)} | ${c.medianPassAtK.toFixed(3)} | ${c.p25PassAtK.toFixed(3)} | ${c.p75PassAtK.toFixed(3)} |`,
-    )
+  if (hasCIs) {
+    lines.push('| Run | Avg | 95% CI | Median | P25 | P75 |')
+    lines.push('|-----|-----|--------|--------|-----|-----|')
+    for (const [label, c] of Object.entries(report.capability)) {
+      const avgCI = formatCI(c.confidenceIntervals?.avgPassAtK)
+      lines.push(
+        `| ${label} | ${c.avgPassAtK.toFixed(3)} | ${avgCI} | ${c.medianPassAtK.toFixed(3)} | ${c.p25PassAtK.toFixed(3)} | ${c.p75PassAtK.toFixed(3)} |`,
+      )
+    }
+  } else {
+    lines.push('| Run | Avg | Median | P25 | P75 |')
+    lines.push('|-----|-----|--------|-----|-----|')
+    for (const [label, c] of Object.entries(report.capability)) {
+      lines.push(
+        `| ${label} | ${c.avgPassAtK.toFixed(3)} | ${c.medianPassAtK.toFixed(3)} | ${c.p25PassAtK.toFixed(3)} | ${c.p75PassAtK.toFixed(3)} |`,
+      )
+    }
   }
   lines.push('')
 
   // Reliability table
   lines.push('## Reliability (passExpK)')
   lines.push('')
-  lines.push('| Run | Avg | Median | P25 | P75 |')
-  lines.push('|-----|-----|--------|-----|-----|')
-  for (const [label, r] of Object.entries(report.reliability)) {
-    lines.push(
-      `| ${label} | ${r.avgPassExpK.toFixed(3)} | ${r.medianPassExpK.toFixed(3)} | ${r.p25PassExpK.toFixed(3)} | ${r.p75PassExpK.toFixed(3)} |`,
-    )
+  if (hasCIs) {
+    lines.push('| Run | Avg | 95% CI | Median | P25 | P75 |')
+    lines.push('|-----|-----|--------|--------|-----|-----|')
+    for (const [label, r] of Object.entries(report.reliability)) {
+      const avgCI = formatCI(r.confidenceIntervals?.avgPassExpK)
+      lines.push(
+        `| ${label} | ${r.avgPassExpK.toFixed(3)} | ${avgCI} | ${r.medianPassExpK.toFixed(3)} | ${r.p25PassExpK.toFixed(3)} | ${r.p75PassExpK.toFixed(3)} |`,
+      )
+    }
+  } else {
+    lines.push('| Run | Avg | Median | P25 | P75 |')
+    lines.push('|-----|-----|--------|-----|-----|')
+    for (const [label, r] of Object.entries(report.reliability)) {
+      lines.push(
+        `| ${label} | ${r.avgPassExpK.toFixed(3)} | ${r.medianPassExpK.toFixed(3)} | ${r.p25PassExpK.toFixed(3)} | ${r.p75PassExpK.toFixed(3)} |`,
+      )
+    }
   }
   lines.push('')
 

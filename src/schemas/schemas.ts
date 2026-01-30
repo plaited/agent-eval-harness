@@ -574,6 +574,17 @@ export type ValidationResult = z.infer<typeof ValidationResultSchema>
 // ============================================================================
 
 /**
+ * Confidence interval schema as [lower, upper] bounds.
+ *
+ * @remarks
+ * Used for bootstrap-computed confidence intervals when strategy=statistical.
+ */
+export const ConfidenceIntervalSchema = z.tuple([z.number(), z.number()])
+
+/** Confidence interval type */
+export type ConfidenceInterval = z.infer<typeof ConfidenceIntervalSchema>
+
+/**
  * Score distribution histogram for quality analysis.
  *
  * @remarks
@@ -591,6 +602,19 @@ export const ScoreDistributionSchema = z.object({
 export type ScoreDistribution = z.infer<typeof ScoreDistributionSchema>
 
 /**
+ * Confidence intervals for quality metrics.
+ */
+export const QualityConfidenceIntervalsSchema = z.object({
+  /** CI for avgScore */
+  avgScore: ConfidenceIntervalSchema.optional(),
+  /** CI for passRate */
+  passRate: ConfidenceIntervalSchema.optional(),
+})
+
+/** Quality confidence intervals type */
+export type QualityConfidenceIntervals = z.infer<typeof QualityConfidenceIntervalsSchema>
+
+/**
  * Quality metrics for a single run in comparison.
  */
 export const QualityMetricsSchema = z.object({
@@ -604,6 +628,8 @@ export const QualityMetricsSchema = z.object({
   failCount: z.number(),
   /** Score distribution histogram */
   scoreDistribution: ScoreDistributionSchema,
+  /** Confidence intervals (only with strategy=statistical) */
+  confidenceIntervals: QualityConfidenceIntervalsSchema.optional(),
 })
 
 /** Quality metrics type */
@@ -631,6 +657,17 @@ export const LatencyStatsSchema = z.object({
 export type LatencyStats = z.infer<typeof LatencyStatsSchema>
 
 /**
+ * Confidence intervals for performance metrics.
+ */
+export const PerformanceConfidenceIntervalsSchema = z.object({
+  /** CI for latency mean */
+  latencyMean: ConfidenceIntervalSchema.optional(),
+})
+
+/** Performance confidence intervals type */
+export type PerformanceConfidenceIntervals = z.infer<typeof PerformanceConfidenceIntervalsSchema>
+
+/**
  * Performance metrics for a single run in comparison.
  */
 export const PerformanceMetricsSchema = z.object({
@@ -640,6 +677,8 @@ export const PerformanceMetricsSchema = z.object({
   firstResponse: LatencyStatsSchema.optional(),
   /** Sum of all run durations in milliseconds */
   totalDuration: z.number(),
+  /** Confidence intervals (only with strategy=statistical) */
+  confidenceIntervals: PerformanceConfidenceIntervalsSchema.optional(),
 })
 
 /** Performance metrics type */
@@ -783,6 +822,17 @@ export type ComparisonReport = z.infer<typeof ComparisonReportSchema>
 // ============================================================================
 
 /**
+ * Confidence intervals for trials capability metrics.
+ */
+export const TrialsCapabilityConfidenceIntervalsSchema = z.object({
+  /** CI for avgPassAtK */
+  avgPassAtK: ConfidenceIntervalSchema.optional(),
+})
+
+/** Trials capability confidence intervals type */
+export type TrialsCapabilityConfidenceIntervals = z.infer<typeof TrialsCapabilityConfidenceIntervalsSchema>
+
+/**
  * Capability metrics for trials comparison (passAtK-based).
  *
  * @remarks
@@ -798,10 +848,23 @@ export const TrialsCapabilityMetricsSchema = z.object({
   p25PassAtK: z.number(),
   /** 75th percentile passAtK */
   p75PassAtK: z.number(),
+  /** Confidence intervals (only with strategy=statistical) */
+  confidenceIntervals: TrialsCapabilityConfidenceIntervalsSchema.optional(),
 })
 
 /** Trials capability metrics type */
 export type TrialsCapabilityMetrics = z.infer<typeof TrialsCapabilityMetricsSchema>
+
+/**
+ * Confidence intervals for trials reliability metrics.
+ */
+export const TrialsReliabilityConfidenceIntervalsSchema = z.object({
+  /** CI for avgPassExpK */
+  avgPassExpK: ConfidenceIntervalSchema.optional(),
+})
+
+/** Trials reliability confidence intervals type */
+export type TrialsReliabilityConfidenceIntervals = z.infer<typeof TrialsReliabilityConfidenceIntervalsSchema>
 
 /**
  * Reliability metrics for trials comparison (passExpK-based).
@@ -819,6 +882,8 @@ export const TrialsReliabilityMetricsSchema = z.object({
   p25PassExpK: z.number(),
   /** 75th percentile passExpK */
   p75PassExpK: z.number(),
+  /** Confidence intervals (only with strategy=statistical) */
+  confidenceIntervals: TrialsReliabilityConfidenceIntervalsSchema.optional(),
 })
 
 /** Trials reliability metrics type */

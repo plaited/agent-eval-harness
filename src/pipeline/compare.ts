@@ -25,6 +25,7 @@
 import { basename, extname } from 'node:path'
 import { parseArgs } from 'node:util'
 import { buildResultsIndex, logProgress, writeOutput } from '../core.ts'
+import { bootstrap, getBootstrapConfigFromEnv } from '../graders/bootstrap.ts'
 import { grade as statisticalGrade } from '../graders/compare-statistical.ts'
 import { grade as weightedGrade } from '../graders/compare-weighted.ts'
 import type {
@@ -471,6 +472,36 @@ export const runCompare = async (config: ExtendedCompareConfig): Promise<Compari
     }
   }
 
+  // Compute confidence intervals when using statistical strategy
+  if (strategy === 'statistical') {
+    const bootstrapConfig = getBootstrapConfigFromEnv()
+
+    for (const label of runLabels) {
+      const resultsMap = runResults[label] ?? new Map()
+      const results = [...resultsMap.values()]
+      const scores = results.map((r) => r.score?.score ?? 0)
+      const passes = results.map((r) => (r.score?.pass === true ? 1 : 0))
+      const latencies = results.map((r) => r.timing?.total ?? 0)
+
+      // Quality CIs
+      const qualityMetrics = quality[label]
+      if (qualityMetrics) {
+        qualityMetrics.confidenceIntervals = {
+          avgScore: bootstrap(scores, bootstrapConfig).ci,
+          passRate: bootstrap(passes, bootstrapConfig).ci,
+        }
+      }
+
+      // Performance CIs
+      const performanceMetrics = performance[label]
+      if (performanceMetrics) {
+        performanceMetrics.confidenceIntervals = {
+          latencyMean: bootstrap(latencies, bootstrapConfig).ci,
+        }
+      }
+    }
+  }
+
   // Trajectory info
   const trajectoryInfo: Record<string, TrajectoryInfo> = {}
   for (const label of runLabels) {
@@ -576,6 +607,18 @@ export const runCompare = async (config: ExtendedCompareConfig): Promise<Compari
  * @param report - Comparison report
  * @returns Markdown string
  */
+/**
+ * Format confidence interval as string.
+ *
+ * @param ci - Confidence interval [lower, upper]
+ * @param decimals - Number of decimal places
+ * @returns Formatted CI string or empty string if undefined
+ */
+const formatCI = (ci: [number, number] | undefined, decimals: number = 3): string => {
+  if (!ci) return ''
+  return `[${ci[0].toFixed(decimals)}, ${ci[1].toFixed(decimals)}]`
+}
+
 const formatReportAsMarkdown = (report: ComparisonReport): string => {
   const lines: string[] = []
 
@@ -586,27 +629,53 @@ const formatReportAsMarkdown = (report: ComparisonReport): string => {
   lines.push(`Prompts: ${report.meta.promptCount} total, ${report.meta.promptsWithAllRuns} with all runs`)
   lines.push('')
 
+  // Check if any run has confidence intervals (statistical strategy was used)
+  const hasCIs = Object.values(report.quality).some((q) => q.confidenceIntervals)
+
   // Quality table
   lines.push('## Quality')
   lines.push('')
-  lines.push('| Run | Avg Score | Pass Rate | Pass | Fail |')
-  lines.push('|-----|-----------|-----------|------|------|')
-  for (const [label, q] of Object.entries(report.quality)) {
-    lines.push(
-      `| ${label} | ${q.avgScore.toFixed(3)} | ${(q.passRate * 100).toFixed(1)}% | ${q.passCount} | ${q.failCount} |`,
-    )
+  if (hasCIs) {
+    lines.push('| Run | Avg Score | 95% CI | Pass Rate | 95% CI | Pass | Fail |')
+    lines.push('|-----|-----------|--------|-----------|--------|------|------|')
+    for (const [label, q] of Object.entries(report.quality)) {
+      const avgScoreCI = formatCI(q.confidenceIntervals?.avgScore)
+      const passRateCI = formatCI(q.confidenceIntervals?.passRate)
+      lines.push(
+        `| ${label} | ${q.avgScore.toFixed(3)} | ${avgScoreCI} | ${(q.passRate * 100).toFixed(1)}% | ${passRateCI} | ${q.passCount} | ${q.failCount} |`,
+      )
+    }
+  } else {
+    lines.push('| Run | Avg Score | Pass Rate | Pass | Fail |')
+    lines.push('|-----|-----------|-----------|------|------|')
+    for (const [label, q] of Object.entries(report.quality)) {
+      lines.push(
+        `| ${label} | ${q.avgScore.toFixed(3)} | ${(q.passRate * 100).toFixed(1)}% | ${q.passCount} | ${q.failCount} |`,
+      )
+    }
   }
   lines.push('')
 
   // Performance table
   lines.push('## Performance')
   lines.push('')
-  lines.push('| Run | P50 (ms) | P90 (ms) | P99 (ms) | Mean (ms) |')
-  lines.push('|-----|----------|----------|----------|-----------|')
-  for (const [label, p] of Object.entries(report.performance)) {
-    lines.push(
-      `| ${label} | ${p.latency.p50.toFixed(0)} | ${p.latency.p90.toFixed(0)} | ${p.latency.p99.toFixed(0)} | ${p.latency.mean.toFixed(0)} |`,
-    )
+  if (hasCIs) {
+    lines.push('| Run | P50 (ms) | P90 (ms) | P99 (ms) | Mean (ms) | 95% CI |')
+    lines.push('|-----|----------|----------|----------|-----------|--------|')
+    for (const [label, p] of Object.entries(report.performance)) {
+      const latencyCI = formatCI(p.confidenceIntervals?.latencyMean, 0)
+      lines.push(
+        `| ${label} | ${p.latency.p50.toFixed(0)} | ${p.latency.p90.toFixed(0)} | ${p.latency.p99.toFixed(0)} | ${p.latency.mean.toFixed(0)} | ${latencyCI} |`,
+      )
+    }
+  } else {
+    lines.push('| Run | P50 (ms) | P90 (ms) | P99 (ms) | Mean (ms) |')
+    lines.push('|-----|----------|----------|----------|-----------|')
+    for (const [label, p] of Object.entries(report.performance)) {
+      lines.push(
+        `| ${label} | ${p.latency.p50.toFixed(0)} | ${p.latency.p90.toFixed(0)} | ${p.latency.p99.toFixed(0)} | ${p.latency.mean.toFixed(0)} |`,
+      )
+    }
   }
   lines.push('')
 
