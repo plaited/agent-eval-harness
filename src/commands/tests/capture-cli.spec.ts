@@ -195,4 +195,53 @@ describe('capture CLI', () => {
     expect(exitCode).not.toBe(0)
     expect(stderr).toContain('--schema is required')
   })
+
+  test('shows error for invalid concurrency value', async () => {
+    const proc = Bun.spawn(
+      ['bun', './bin/cli.ts', 'capture', '/tmp/prompts.jsonl', '-s', '/tmp/schema.json', '-j', 'abc'],
+      {
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).not.toBe(0)
+    expect(stderr).toContain('--concurrency must be a positive integer')
+  })
+
+  test('shows error for zero concurrency', async () => {
+    const proc = Bun.spawn(
+      ['bun', './bin/cli.ts', 'capture', '/tmp/prompts.jsonl', '-s', '/tmp/schema.json', '-j', '0'],
+      {
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).not.toBe(0)
+    expect(stderr).toContain('--concurrency must be a positive integer')
+  })
+
+  test('shows error for negative concurrency', async () => {
+    // Note: Using --concurrency=-1 format because -j -1 is ambiguous to parseArgs
+    const proc = Bun.spawn(
+      ['bun', './bin/cli.ts', 'capture', '/tmp/prompts.jsonl', '-s', '/tmp/schema.json', '--concurrency=-1'],
+      {
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).not.toBe(0)
+    expect(stderr).toContain('--concurrency must be a positive integer')
+  })
 })

@@ -11,6 +11,8 @@
  * @packageDocumentation
  */
 
+import { mkdir } from 'node:fs/promises'
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -94,18 +96,6 @@ export const createWriteMutex = (): WriteMutex => {
  * @param worker - Async function to process each item
  * @param options - Pool configuration
  * @returns Results and any errors encountered
- *
- * @example
- * ```typescript
- * const { results, errors } = await runWorkerPool(
- *   prompts,
- *   async (prompt, index) => {
- *     const result = await processPrompt(prompt)
- *     return result
- *   },
- *   { concurrency: 4, onProgress: (done, total) => console.log(`${done}/${total}`) }
- * )
- * ```
  *
  * @public
  */
@@ -207,7 +197,9 @@ export const runWorkerPool = async <TItem, TResult>(
  *
  * @remarks
  * Creates an isolated directory for each prompt execution.
- * Directory is created if it doesn't exist.
+ * Directory is created if it doesn't exist. Directories persist
+ * after completion for debugging/inspection - clean up manually
+ * or via CI scripts if disk space is a concern.
  *
  * @param baseDir - Base workspace directory
  * @param promptId - Unique prompt identifier
@@ -221,7 +213,8 @@ export const createWorkspaceDir = async (baseDir: string, promptId: string): Pro
   const workspaceDir = `${baseDir}/prompt-${sanitizedId}`
 
   // Create directory (recursive, no error if exists)
-  await Bun.$`mkdir -p ${workspaceDir}`.quiet()
+  // Uses fs.mkdir instead of shell to prevent command injection
+  await mkdir(workspaceDir, { recursive: true })
 
   return workspaceDir
 }

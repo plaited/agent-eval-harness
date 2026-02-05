@@ -148,6 +148,7 @@ bunx @plaited/agent-eval-harness trials prompts.jsonl --schema ./claude.json -k 
 - Each prompt's k trials still run sequentially (required for aggregation)
 - With 151 prompts and `-j 4`, you get 4 prompts running trials concurrently
 - `--workspace-dir` creates `{workspace-dir}/prompt-{id}-trial-{n}/` for each trial
+- Workspace directories persist after completion for debugging - clean up manually or via CI
 
 ### Output
 

@@ -11,6 +11,7 @@
  * @packageDocumentation
  */
 
+import { mkdir } from 'node:fs/promises'
 import { parseArgs } from 'node:util'
 import {
   createWorkspaceDir,
@@ -164,8 +165,9 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
   }
 
   // Create workspace base directory if specified
+  // Uses fs.mkdir instead of shell to prevent command injection
   if (resolvedWorkspaceDir) {
-    await Bun.$`mkdir -p ${resolvedWorkspaceDir}`.quiet()
+    await mkdir(resolvedWorkspaceDir, { recursive: true })
   }
 
   const defaultWorkingDir = cwd ?? process.cwd()
@@ -449,6 +451,17 @@ Examples:
     }
   }
 
+  // Validate and parse concurrency
+  let concurrency = 1
+  if (values.concurrency) {
+    const parsed = Number.parseInt(values.concurrency, 10)
+    if (Number.isNaN(parsed) || parsed < 1) {
+      console.error('Error: --concurrency must be a positive integer')
+      process.exit(1)
+    }
+    concurrency = parsed
+  }
+
   await runCapture({
     promptsPath,
     schemaPath: values.schema,
@@ -459,7 +472,7 @@ Examples:
     append: values.append ?? false,
     grader,
     debug: values.debug ?? false,
-    concurrency: values.concurrency ? Number.parseInt(values.concurrency, 10) : 1,
+    concurrency,
     workspaceDir: values['workspace-dir'],
   })
 }
