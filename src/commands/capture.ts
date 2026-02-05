@@ -13,6 +13,8 @@
 
 import { parseArgs } from 'node:util'
 import {
+  createWorkspaceDir,
+  createWriteMutex,
   detectTrajectoryRichness,
   extractOutput,
   extractTrajectory,
@@ -21,6 +23,7 @@ import {
   loadPrompts,
   logProgress,
   resolvePath,
+  runWorkerPool,
   writeOutput,
 } from '../core.ts'
 import { type HeadlessAdapterConfig, parseHeadlessConfig } from '../headless/headless.schemas.ts'
@@ -70,6 +73,10 @@ export type CaptureConfig = {
   grader?: Grader
   /** Enable debug mode for detailed output */
   debug?: boolean
+  /** Number of concurrent workers (default: 1 for sequential) */
+  concurrency?: number
+  /** Base directory for per-prompt workspace isolation */
+  workspaceDir?: string
 }
 
 // ============================================================================
@@ -97,6 +104,8 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
     append = false,
     grader,
     debug = false,
+    concurrency = 1,
+    workspaceDir,
   } = config
 
   // Load and validate schema
@@ -116,8 +125,9 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
   // Load prompts
   const prompts = await loadPrompts(promptsPath)
 
-  // Resolve output path
+  // Resolve paths
   const resolvedOutputPath = outputPath ? resolvePath(outputPath) : undefined
+  const resolvedWorkspaceDir = workspaceDir ? resolvePath(workspaceDir) : undefined
 
   // Determine effective timeout (CLI flag > schema default > harness default)
   const schemaTimeout = 'timeout' in schema ? schema.timeout : undefined
@@ -127,6 +137,12 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
   logProgress(`Loaded ${prompts.length} prompts from ${promptsPath}`, progress)
   logProgress(`Schema: ${schema.name} (${schemaPath})`, progress)
   logProgress(`Timeout: ${effectiveTimeout}ms`, progress)
+  if (concurrency > 1) {
+    logProgress(`Concurrency: ${concurrency} workers`, progress)
+  }
+  if (resolvedWorkspaceDir) {
+    logProgress(`Workspace: ${resolvedWorkspaceDir}`, progress)
+  }
   if (resolvedOutputPath) {
     logProgress(`Output: ${resolvedOutputPath}`, progress)
   }
@@ -147,24 +163,35 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
     await Bun.write(resolvedOutputPath, '')
   }
 
-  const workingDir = cwd ?? process.cwd()
-  const results: CaptureResult[] = []
+  // Create workspace base directory if specified
+  if (resolvedWorkspaceDir) {
+    await Bun.$`mkdir -p ${resolvedWorkspaceDir}`.quiet()
+  }
+
+  const defaultWorkingDir = cwd ?? process.cwd()
+
+  // Create write mutex for coordinating JSONL output
+  const writeMutex = createWriteMutex()
   let isFirstOutput = true
 
-  // Run evaluations sequentially - fresh session per entry
-  for (let i = 0; i < prompts.length; i++) {
-    const promptCase = prompts[i]
-    if (!promptCase) continue
+  // Process a single prompt (used by worker pool)
+  const processPrompt = async (promptCase: (typeof prompts)[number], index: number): Promise<CaptureResult> => {
+    // Determine working directory (per-prompt workspace or default)
+    const workingDir = resolvedWorkspaceDir
+      ? await createWorkspaceDir(resolvedWorkspaceDir, promptCase.id)
+      : defaultWorkingDir
 
-    logProgress(`[${i + 1}/${prompts.length}] ${promptCase.id}: ${getInputPreview(promptCase.input)}...`, progress)
+    logProgress(`[${index + 1}/${prompts.length}] ${promptCase.id}: ${getInputPreview(promptCase.input)}...`, progress)
 
     const startTime = Date.now()
     let result: CaptureResult
+    let sessionId: string | undefined
 
     try {
       // Create fresh session for each entry (ensures isolation)
       const sessionStart = Date.now()
       const session = await sessions.create(workingDir)
+      sessionId = session.id
       const sessionCreation = Date.now() - sessionStart
       logProgress(`  Session: ${session.id}`, progress)
 
@@ -176,9 +203,6 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
       const allUpdates: ParsedUpdate[] = []
       let lastExitInfo: ProcessExitInfo | undefined
       let lastOutput = ''
-
-      // TODO: Per-prompt timeout from promptCase.timeout is documented but not yet implemented
-      // The session manager would need to accept timeout per-call to support this
 
       // Execute each turn sequentially in the same session
       for (const turnInput of inputs) {
@@ -198,7 +222,7 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
 
       result = {
         id: promptCase.id,
-        input: promptCase.input, // Preserve original (string or array)
+        input: promptCase.input,
         output,
         ...(promptCase.hint && { hint: promptCase.hint }),
         trajectory,
@@ -207,6 +231,7 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
           agent: schema.name,
           trajectoryRichness,
           turnCount,
+          ...(resolvedWorkspaceDir && { workspaceDir: workingDir }),
           ...(lastExitInfo && {
             exitCode: lastExitInfo.exitCode,
             signal: lastExitInfo.signal,
@@ -236,14 +261,10 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
 
         result.score = graderResult
 
-        // Merge outcome from grader if present
         if (graderResult.outcome) {
           result.outcome = graderResult.outcome
         }
       }
-
-      // Clean up session
-      sessions.destroy(session.id)
     } catch (error) {
       const endTime = Date.now()
       const message = error instanceof Error ? error.message : String(error)
@@ -259,6 +280,7 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
           agent: schema.name,
           trajectoryRichness: 'minimal' as TrajectoryRichness,
           turnCount: inputs.length,
+          ...(resolvedWorkspaceDir && { workspaceDir: workingDir }),
         },
         timing: {
           start: startTime,
@@ -269,14 +291,19 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
         toolErrors: true,
         errors: [message],
       }
+    } finally {
+      // Always clean up session if it was created
+      if (sessionId) {
+        sessions.destroy(sessionId)
+      }
     }
 
-    results.push(result)
-
-    // Write result immediately
-    const formatted = JSON.stringify(result)
-    await writeOutput(formatted, resolvedOutputPath, !isFirstOutput)
-    isFirstOutput = false
+    // Write result immediately (coordinated via mutex for concurrent writes)
+    await writeMutex.write(async () => {
+      const formatted = JSON.stringify(result)
+      await writeOutput(formatted, resolvedOutputPath, !isFirstOutput)
+      isFirstOutput = false
+    })
 
     const statusIcon = result.toolErrors ? '!' : '✓'
     const exitInfo = result.metadata?.timedOut
@@ -284,7 +311,24 @@ export const runCapture = async (config: CaptureConfig): Promise<CaptureResult[]
       : result.metadata?.exitCode && result.metadata.exitCode !== 0
         ? ` - exit ${result.metadata.exitCode}`
         : ''
-    logProgress(`  ${statusIcon} (${result.timing.total}ms)${exitInfo}`, progress)
+    logProgress(`  ${statusIcon} ${promptCase.id} (${result.timing.total}ms)${exitInfo}`, progress)
+
+    return result
+  }
+
+  // Run with worker pool
+  const { results, errors } = await runWorkerPool(prompts, processPrompt, {
+    concurrency,
+    onProgress: (completed, total) => {
+      if (concurrency > 1) {
+        logProgress(`Progress: ${completed}/${total} prompts completed`, progress)
+      }
+    },
+  })
+
+  // Log any errors that occurred
+  if (errors.length > 0) {
+    logProgress(`Completed with ${errors.length} error(s)`, progress)
   }
 
   logProgress('Done!', progress)
@@ -312,6 +356,8 @@ export const capture = async (args: string[]): Promise<void> => {
       append: { type: 'boolean', default: false },
       grader: { type: 'string', short: 'g' },
       debug: { type: 'boolean', default: false },
+      concurrency: { type: 'string', short: 'j' },
+      'workspace-dir': { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
     allowPositionals: true,
@@ -329,6 +375,8 @@ Options:
   -o, --output      Output file (default: stdout)
   -c, --cwd         Working directory for agent
   -t, --timeout     Request timeout in ms (overrides schema default)
+  -j, --concurrency Number of concurrent workers (default: 1)
+  --workspace-dir   Base directory for per-prompt workspace isolation
   --progress        Show progress to stderr
   --append          Append to output file instead of overwriting
   -g, --grader      Path to grader (.ts/.js module or executable script)
@@ -348,18 +396,32 @@ Graders:
   TS/JS modules must export a 'grade' function.
   Executable scripts (Python, etc.) use stdin/stdout JSON protocol.
 
+Parallelization:
+  Use -j/--concurrency to run multiple prompts in parallel.
+  Each prompt gets its own agent session for isolation.
+  Results are written as they complete (order may differ from input).
+
+Workspace Isolation:
+  Use --workspace-dir to create per-prompt directories.
+  Each prompt runs in {workspace-dir}/prompt-{id}/.
+  Useful for code generation tasks requiring filesystem isolation.
+
 Examples:
   # Basic capture with schema
   agent-eval-harness capture prompts.jsonl --schema claude.json -o results.jsonl
+
+  # Run 4 prompts in parallel
+  agent-eval-harness capture prompts.jsonl -s claude.json -j 4 -o results.jsonl
+
+  # With workspace isolation for code generation
+  agent-eval-harness capture prompts.jsonl -s claude.json -j 4 \\
+    --workspace-dir ./workspaces -o results.jsonl
 
   # With TypeScript grader
   agent-eval-harness capture prompts.jsonl -s claude.json --grader ./grader.ts -o results.jsonl
 
   # With debug mode
   agent-eval-harness capture prompts.jsonl -s claude.json --debug -o results.jsonl
-
-  # With per-prompt timeout override (in prompts.jsonl):
-  {"id": "slow-task", "input": "...", "timeout": 180000}
 `)
     return
   }
@@ -397,5 +459,7 @@ Examples:
     append: values.append ?? false,
     grader,
     debug: values.debug ?? false,
+    concurrency: values.concurrency ? Number.parseInt(values.concurrency, 10) : 1,
+    workspaceDir: values['workspace-dir'],
   })
 }

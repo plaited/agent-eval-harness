@@ -23,3 +23,13 @@ export {
   extractTrajectory,
   hasToolErrors,
 } from './trajectory.ts'
+// Worker pool utilities
+export {
+  createWorkspaceDir,
+  createWriteMutex,
+  type ProgressCallback,
+  runWorkerPool,
+  type WorkerPoolOptions,
+  type WorkerPoolResult,
+  type WriteMutex,
+} from './worker-pool.ts'

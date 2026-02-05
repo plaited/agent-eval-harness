@@ -17,11 +17,15 @@ describe('TrialsConfig configuration', () => {
       progress: true,
       append: false,
       debug: false,
+      concurrency: 4,
+      workspaceDir: '/tmp/workspaces',
     }
 
     expect(config.promptsPath).toBe('/tmp/prompts.jsonl')
     expect(config.schemaPath).toBe('./schemas/claude-headless.json')
     expect(config.k).toBe(5)
+    expect(config.concurrency).toBe(4)
+    expect(config.workspaceDir).toBe('/tmp/workspaces')
   })
 
   test('TrialsConfig allows minimal configuration', () => {
@@ -37,6 +41,8 @@ describe('TrialsConfig configuration', () => {
     expect(config.progress).toBeUndefined()
     expect(config.append).toBeUndefined()
     expect(config.grader).toBeUndefined()
+    expect(config.concurrency).toBeUndefined()
+    expect(config.workspaceDir).toBeUndefined()
   })
 })
 
@@ -64,6 +70,8 @@ describe('trials CLI', () => {
     expect(stdout).toContain('-g, --grader')
     expect(stdout).toContain('-s, --schema')
     expect(stdout).toContain('pass@k')
+    expect(stdout).toContain('-j, --concurrency')
+    expect(stdout).toContain('--workspace-dir')
   })
 
   test('shows error for missing prompts file argument', async () => {

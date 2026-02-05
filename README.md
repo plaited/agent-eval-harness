@@ -58,10 +58,20 @@ bunx @plaited/agent-eval-harness capture prompts.jsonl \
   --schema ./schemas/claude-headless.json \
   -o results.jsonl
 
+# Parallel capture (4x faster with 4 workers)
+bunx @plaited/agent-eval-harness capture prompts.jsonl \
+  --schema ./schemas/claude-headless.json \
+  -j 4 -o results.jsonl
+
 # Run trials for pass@k analysis with debug mode
 bunx @plaited/agent-eval-harness trials prompts.jsonl \
   --schema ./schemas/claude-headless.json \
   -k 5 --grader ./grader.ts --debug
+
+# Parallel trials (4 prompts running trials concurrently)
+bunx @plaited/agent-eval-harness trials prompts.jsonl \
+  --schema ./schemas/claude-headless.json \
+  -k 5 -j 4 --workspace-dir ./workspaces -o trials.jsonl
 
 # Summarize results
 bunx @plaited/agent-eval-harness summarize results.jsonl -o summary.jsonl

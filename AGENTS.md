@@ -10,6 +10,8 @@ CLI tool capturing agent trajectories from headless CLI agents. Executes prompts
 
 - **Multi-turn**: `input: string | string[]` executes sequentially in same session
 - **Isolation**: Fresh session per JSONL entry
+- **Parallelization**: `-j N` runs N prompts concurrently via worker pool
+- **Workspace isolation**: `--workspace-dir` creates per-prompt directories
 - **MCP auto-discovery**: No explicit `--mcp-server` flag needed
 - **Headless adapter**: Schema-driven JSON wrapper for any CLI agent
 

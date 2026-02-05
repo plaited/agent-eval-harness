@@ -97,6 +97,8 @@ bunx @plaited/agent-eval-harness capture <prompts.jsonl> --schema <schema.json> 
 | `-o, --output` | Output file/path | stdout |
 | `-c, --cwd` | Working directory for agent | current |
 | `-t, --timeout` | Request timeout in ms | `60000` |
+| `-j, --concurrency` | Number of concurrent workers | `1` |
+| `--workspace-dir` | Base directory for per-prompt workspace isolation | none |
 | `--progress` | Show progress to stderr | false |
 | `--append` | Append to output file | false |
 | `-g, --grader` | Path to grader module | none |
@@ -107,6 +109,13 @@ bunx @plaited/agent-eval-harness capture <prompts.jsonl> --schema <schema.json> 
 ```bash
 # Basic capture
 bunx @plaited/agent-eval-harness capture prompts.jsonl --schema ./claude.json -o results.jsonl
+
+# Parallel execution (4x faster with 4 workers)
+bunx @plaited/agent-eval-harness capture prompts.jsonl --schema ./claude.json -j 4 -o results.jsonl
+
+# With workspace isolation for code generation tasks
+bunx @plaited/agent-eval-harness capture prompts.jsonl --schema ./claude.json \
+  -j 4 --workspace-dir ./workspaces -o results.jsonl
 
 # Using a local adapter script
 bunx @plaited/agent-eval-harness capture prompts.jsonl bun ./my-adapter.ts -o results.jsonl
@@ -125,7 +134,20 @@ bunx @plaited/agent-eval-harness trials prompts.jsonl --schema ./claude.json -k 
 
 # With grader (computes pass@k, pass^k)
 bunx @plaited/agent-eval-harness trials prompts.jsonl --schema ./claude.json -k 5 --grader ./grader.ts -o trials.jsonl
+
+# Parallel execution (4 prompts' trials run concurrently)
+bunx @plaited/agent-eval-harness trials prompts.jsonl --schema ./claude.json -k 5 -j 4 -o trials.jsonl
+
+# With workspace isolation (each trial gets its own directory)
+bunx @plaited/agent-eval-harness trials prompts.jsonl --schema ./claude.json -k 5 -j 4 \
+  --workspace-dir ./workspaces -o trials.jsonl
 ```
+
+**Parallelization notes:**
+- `-j/--concurrency` parallelizes across prompts (not trials within a prompt)
+- Each prompt's k trials still run sequentially (required for aggregation)
+- With 151 prompts and `-j 4`, you get 4 prompts running trials concurrently
+- `--workspace-dir` creates `{workspace-dir}/prompt-{id}-trial-{n}/` for each trial
 
 ### Output
 

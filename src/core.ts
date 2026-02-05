@@ -11,6 +11,9 @@ export {
   // Loading
   buildResultsIndex,
   countLines,
+  // Worker pool
+  createWorkspaceDir,
+  createWriteMutex,
   // Trajectory
   detectTrajectoryRichness,
   extractContent,
@@ -25,7 +28,12 @@ export {
   loadPrompts,
   loadResults,
   logProgress,
+  type ProgressCallback,
   resolvePath,
+  runWorkerPool,
   streamResults,
+  type WorkerPoolOptions,
+  type WorkerPoolResult,
+  type WriteMutex,
   writeOutput,
 } from './core/core.ts'

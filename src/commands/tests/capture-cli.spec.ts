@@ -117,10 +117,14 @@ describe('runCapture configuration', () => {
       progress: true,
       append: false,
       debug: false,
+      concurrency: 4,
+      workspaceDir: '/tmp/workspaces',
     }
 
     expect(config.promptsPath).toBe('/tmp/prompts.jsonl')
     expect(config.schemaPath).toBe('./schemas/claude-headless.json')
+    expect(config.concurrency).toBe(4)
+    expect(config.workspaceDir).toBe('/tmp/workspaces')
   })
 
   test('CaptureConfig allows minimal configuration', () => {
@@ -135,6 +139,8 @@ describe('runCapture configuration', () => {
     expect(config.progress).toBeUndefined()
     expect(config.append).toBeUndefined()
     expect(config.grader).toBeUndefined()
+    expect(config.concurrency).toBeUndefined()
+    expect(config.workspaceDir).toBeUndefined()
   })
 })
 
@@ -160,6 +166,8 @@ describe('capture CLI', () => {
     expect(stdout).toContain('--progress')
     expect(stdout).toContain('-g, --grader')
     expect(stdout).toContain('-s, --schema')
+    expect(stdout).toContain('-j, --concurrency')
+    expect(stdout).toContain('--workspace-dir')
   })
 
   test('shows error for missing prompts file argument', async () => {
