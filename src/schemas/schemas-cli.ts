@@ -10,6 +10,7 @@
 
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
+import { resolvePath } from '../core.ts'
 import * as schemas from './schemas.ts'
 
 // ============================================================================
@@ -56,12 +57,6 @@ export type SchemasConfig = {
 // ============================================================================
 // Helpers
 // ============================================================================
-
-/** Resolve path relative to process.cwd() */
-const resolvePath = (path: string): string => {
-  if (path.startsWith('/')) return path
-  return `${process.cwd()}/${path}`
-}
 
 /** Generate JSON Schema from Zod schema */
 const toJsonSchema = (schema: z.ZodSchema, name: string): object => {

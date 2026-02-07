@@ -9,8 +9,8 @@
  */
 
 import { parseArgs } from 'node:util'
+import { loadPrompts, resolvePath } from '../core.ts'
 import type { BalanceAnalysis, CategoryDistribution, PromptCase } from '../schemas.ts'
-import { loadPrompts } from './capture.ts'
 
 // ============================================================================
 // Types
@@ -26,16 +26,6 @@ export type BalanceConfig = {
   key?: string
   /** Threshold for underrepresentation (percentage) */
   threshold?: number
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/** Resolve path relative to process.cwd() */
-const resolvePath = (path: string): string => {
-  if (path.startsWith('/')) return path
-  return `${process.cwd()}/${path}`
 }
 
 /**

@@ -11,7 +11,7 @@
 import { parseArgs } from 'node:util'
 import { loadResults, resolvePath } from '../core.ts'
 import { DEFAULT_CALIBRATION_SAMPLE_SIZE } from '../schemas/constants.ts'
-import { loadGrader } from '../schemas/grader-loader.ts'
+import { loadGraderOrExit } from '../schemas/grader-loader.ts'
 import type { CalibrationSample, Grader, GraderResult, TrajectoryStep } from '../schemas.ts'
 
 // ============================================================================
@@ -293,15 +293,7 @@ Examples:
   }
 
   // Load grader if specified
-  let grader: Grader | undefined
-  if (values.grader) {
-    try {
-      grader = await loadGrader(values.grader)
-    } catch (error) {
-      console.error(`Error: ${error instanceof Error ? error.message : error}`)
-      process.exit(1)
-    }
-  }
+  const grader = values.grader ? await loadGraderOrExit(values.grader) : undefined
 
   await runCalibrate({
     resultsPath,

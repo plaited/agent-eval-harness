@@ -9,9 +9,9 @@
  */
 
 import { parseArgs } from 'node:util'
-import { loadGrader } from '../schemas/grader-loader.ts'
+import { loadPrompts, resolvePath } from '../core.ts'
+import { loadGraderOrExit } from '../schemas/grader-loader.ts'
 import type { Grader, ValidationResult } from '../schemas.ts'
-import { loadPrompts } from './capture.ts'
 
 // ============================================================================
 // Types
@@ -25,16 +25,6 @@ export type ValidateRefsConfig = {
   outputPath?: string
   /** Grader function */
   grader: Grader
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/** Resolve path relative to process.cwd() */
-const resolvePath = (path: string): string => {
-  if (path.startsWith('/')) return path
-  return `${process.cwd()}/${path}`
 }
 
 // ============================================================================
@@ -171,13 +161,7 @@ Examples:
   }
 
   // Load grader
-  let grader: Grader
-  try {
-    grader = await loadGrader(values.grader)
-  } catch (error) {
-    console.error(`Error: ${error instanceof Error ? error.message : error}`)
-    process.exit(1)
-  }
+  const grader = await loadGraderOrExit(values.grader)
 
   await runValidateRefs({
     promptsPath,

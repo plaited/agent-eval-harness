@@ -11,26 +11,13 @@
  * @packageDocumentation
  */
 
-import { mkdir } from 'node:fs/promises'
 import { parseArgs } from 'node:util'
-import {
-  createWorkspaceDir,
-  createWriteMutex,
-  extractOutput,
-  extractTrajectory,
-  loadPrompts,
-  logProgress,
-  readStdinPrompts,
-  resolvePath,
-  runWorkerPool,
-  writeOutput,
-} from '../core.ts'
-import { type HeadlessAdapterConfig, parseHeadlessConfig } from '../headless/headless.schemas.ts'
+import { createWorkspaceDir, extractOutput, extractTrajectory, logProgress, readStdinPrompts } from '../core.ts'
 import type { ParsedUpdate } from '../headless/headless-output-parser.ts'
-import { createSessionManager } from '../headless/headless-session-manager.ts'
-import { DEFAULT_HARNESS_TIMEOUT, DEFAULT_TRIAL_COUNT } from '../schemas/constants.ts'
-import { loadGrader } from '../schemas/grader-loader.ts'
-import type { Grader, PromptCase, TrialEntry, TrialResult } from '../schemas.ts'
+import { DEFAULT_TRIAL_COUNT } from '../schemas/constants.ts'
+import { loadGraderOrExit } from '../schemas/grader-loader.ts'
+import type { PromptCase, TrialEntry, TrialResult } from '../schemas.ts'
+import { type BaseExecutionConfig, executePrompts, parseConcurrency, prepareExecution } from './execution.ts'
 
 // ============================================================================
 // Pass@k/Pass^k Calculation
@@ -86,33 +73,9 @@ export const calculatePassExpK = (passes: number, k: number): number => {
 // ============================================================================
 
 /** Configuration for trials command */
-export type TrialsConfig = {
-  /** Path to prompts.jsonl file (required unless prompts provided) */
-  promptsPath?: string
-  /** Path to agent schema JSON file */
-  schemaPath: string
-  /** Pre-loaded prompt cases (from stdin); skips file loading when set */
-  prompts?: PromptCase[]
+export type TrialsConfig = BaseExecutionConfig & {
   /** Number of trials per prompt */
   k: number
-  /** Output file path */
-  outputPath?: string
-  /** Working directory for agent */
-  cwd?: string
-  /** Timeout per prompt in milliseconds (overrides schema default) */
-  timeout?: number
-  /** Show progress to stderr */
-  progress?: boolean
-  /** Append to output file */
-  append?: boolean
-  /** Optional grader function */
-  grader?: Grader
-  /** Enable debug mode */
-  debug?: boolean
-  /** Number of concurrent workers (default: 1 for sequential) */
-  concurrency?: number
-  /** Base directory for per-prompt workspace isolation */
-  workspaceDir?: string
 }
 
 // ============================================================================
@@ -126,58 +89,17 @@ export type TrialsConfig = {
  * @returns Array of trial results
  */
 export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> => {
-  const {
-    promptsPath,
-    schemaPath,
-    k,
-    outputPath,
-    cwd,
-    timeout,
-    progress = false,
-    append = false,
-    grader,
-    debug = false,
-    concurrency = 1,
-    workspaceDir,
-  } = config
-
-  // Validate that we have a prompt source
-  if (!config.prompts && !promptsPath) {
-    throw new Error('Either promptsPath or prompts must be provided')
-  }
-
-  // Load and validate schema
-  const schemaFile = Bun.file(schemaPath)
-  if (!(await schemaFile.exists())) {
-    throw new Error(`Schema file not found: ${schemaPath}`)
-  }
-
-  let schema: HeadlessAdapterConfig
-  try {
-    const rawSchema = await schemaFile.json()
-    schema = parseHeadlessConfig(rawSchema)
-  } catch (error) {
-    throw new Error(`Invalid schema: ${error instanceof Error ? error.message : String(error)}`)
-  }
-
-  // Load prompts from pre-loaded array or file
-  const prompts = config.prompts ?? (await loadPrompts(promptsPath!))
-
-  // Resolve paths
-  const resolvedOutputPath = outputPath ? resolvePath(outputPath) : undefined
-  const resolvedWorkspaceDir = workspaceDir ? resolvePath(workspaceDir) : undefined
-
-  // Determine effective timeout (CLI flag > schema default > harness default)
-  const schemaTimeout = 'timeout' in schema ? schema.timeout : undefined
-  const effectiveTimeout = timeout ?? schemaTimeout ?? DEFAULT_HARNESS_TIMEOUT
+  const { k } = config
+  const ctx = await prepareExecution(config)
+  const { schema, prompts, sessions, resolvedWorkspaceDir, defaultWorkingDir, progress, grader } = ctx
 
   // Log progress info
-  logProgress(`Loaded ${prompts.length} prompts from ${promptsPath ?? 'stdin'}`, progress)
+  logProgress(`Loaded ${prompts.length} prompts from ${config.promptsPath ?? 'stdin'}`, progress)
   logProgress(`Running ${k} trials per prompt (${prompts.length * k} total executions)`, progress)
-  logProgress(`Schema: ${schema.name} (${schemaPath})`, progress)
-  logProgress(`Timeout: ${effectiveTimeout}ms`, progress)
-  if (concurrency > 1) {
-    logProgress(`Concurrency: ${concurrency} workers`, progress)
+  logProgress(`Schema: ${schema.name} (${config.schemaPath})`, progress)
+  logProgress(`Timeout: ${ctx.effectiveTimeout}ms`, progress)
+  if (ctx.concurrency > 1) {
+    logProgress(`Concurrency: ${ctx.concurrency} workers`, progress)
   }
   if (resolvedWorkspaceDir) {
     logProgress(`Workspace: ${resolvedWorkspaceDir}`, progress)
@@ -185,31 +107,6 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
   if (grader) {
     logProgress('Grader: enabled (will compute pass@k metrics)', progress)
   }
-
-  // Create session manager with schema
-  const sessions = createSessionManager({
-    schema,
-    timeout: effectiveTimeout,
-    verbose: progress,
-    debug,
-  })
-
-  // Clear output file if not appending
-  if (resolvedOutputPath && !append) {
-    await Bun.write(resolvedOutputPath, '')
-  }
-
-  // Create workspace base directory if specified
-  // Uses fs.mkdir instead of shell to prevent command injection
-  if (resolvedWorkspaceDir) {
-    await mkdir(resolvedWorkspaceDir, { recursive: true })
-  }
-
-  const defaultWorkingDir = cwd ?? process.cwd()
-
-  // Create write mutex for coordinating JSONL output
-  const writeMutex = createWriteMutex()
-  let isFirstOutput = true
 
   // Process all trials for a single prompt
   const processPromptTrials = async (promptCase: (typeof prompts)[number], index: number): Promise<TrialResult> => {
@@ -316,11 +213,7 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
     }
 
     // Write result immediately (coordinated via mutex for concurrent writes)
-    await writeMutex.write(async () => {
-      const formatted = JSON.stringify(result)
-      await writeOutput(formatted, resolvedOutputPath, !isFirstOutput)
-      isFirstOutput = false
-    })
+    await ctx.writeResult(result)
 
     if (grader) {
       logProgress(
@@ -333,20 +226,7 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
   }
 
   // Run with worker pool (parallelizes across prompts, trials for each prompt run sequentially)
-  const { results, errors } = await runWorkerPool(prompts, processPromptTrials, {
-    concurrency,
-    onProgress: (completed, total) => {
-      logProgress(`Progress: ${completed}/${total} prompts completed`, progress)
-    },
-  })
-
-  // Log any errors that occurred
-  if (errors.length > 0) {
-    logProgress(`Completed with ${errors.length} error(s)`, progress)
-  }
-
-  logProgress('Done!', progress)
-  return results
+  return executePrompts(ctx, processPromptTrials)
 }
 
 // ============================================================================
@@ -477,26 +357,7 @@ Examples:
   }
 
   // Load grader if specified
-  let grader: Grader | undefined
-  if (values.grader) {
-    try {
-      grader = await loadGrader(values.grader)
-    } catch (error) {
-      console.error(`Error: ${error instanceof Error ? error.message : error}`)
-      process.exit(1)
-    }
-  }
-
-  // Validate and parse concurrency
-  let concurrency = 1
-  if (values.concurrency) {
-    const parsed = Number.parseInt(values.concurrency, 10)
-    if (Number.isNaN(parsed) || parsed < 1) {
-      console.error('Error: --concurrency must be a positive integer')
-      process.exit(1)
-    }
-    concurrency = parsed
-  }
+  const grader = values.grader ? await loadGraderOrExit(values.grader) : undefined
 
   await runTrials({
     promptsPath: promptsPath ?? undefined,
@@ -510,7 +371,7 @@ Examples:
     append: values.append ?? false,
     grader,
     debug: values.debug ?? false,
-    concurrency,
+    concurrency: parseConcurrency(values.concurrency),
     workspaceDir: values['workspace-dir'],
   })
 }

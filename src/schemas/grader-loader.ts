@@ -13,6 +13,7 @@
  * @packageDocumentation
  */
 
+import { resolvePath } from '../core.ts'
 import type { Grader, TrajectoryStep } from './schemas.ts'
 import { GraderResultSchema } from './schemas.ts'
 
@@ -29,12 +30,6 @@ const JS_EXTENSIONS = ['.ts', '.js', '.mjs', '.cjs']
 
 /** Check if a file path is a JavaScript/TypeScript module */
 const isJsModule = (path: string): boolean => JS_EXTENSIONS.some((ext) => path.endsWith(ext))
-
-/** Resolve path relative to process.cwd() */
-const resolvePath = (path: string): string => {
-  if (path.startsWith('/')) return path
-  return `${process.cwd()}/${path}`
-}
 
 // ============================================================================
 // Executable Grader
@@ -169,6 +164,28 @@ const loadModuleGrader = async (modulePath: string): Promise<Grader> => {
  * const grader = await loadGrader('./my-grader')
  * ```
  */
+/**
+ * Load a grader from a file path, exiting on failure.
+ *
+ * @remarks
+ * CLI-friendly wrapper around `loadGrader` that prints the error to stderr
+ * and calls `process.exit(1)` on failure. Eliminates the duplicated
+ * try/catch pattern across CLI handlers.
+ *
+ * @param graderPath - Path to the grader (relative or absolute)
+ * @returns Grader function (never returns on failure)
+ *
+ * @public
+ */
+export const loadGraderOrExit = async (graderPath: string): Promise<Grader> => {
+  try {
+    return await loadGrader(graderPath)
+  } catch (error) {
+    console.error(`Error: ${error instanceof Error ? error.message : error}`)
+    process.exit(1)
+  }
+}
+
 export const loadGrader = async (graderPath: string): Promise<Grader> => {
   const resolvedPath = resolvePath(graderPath)
 

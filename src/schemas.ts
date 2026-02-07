@@ -18,7 +18,7 @@ export {
   TAIL_LINES,
 } from './schemas/constants.ts'
 // Grader loader
-export { loadGrader } from './schemas/grader-loader.ts'
+export { loadGrader, loadGraderOrExit } from './schemas/grader-loader.ts'
 // Core session types
 // JSON-RPC types (MCP compatibility)
 // MCP server configuration
