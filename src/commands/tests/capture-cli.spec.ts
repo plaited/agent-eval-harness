@@ -142,6 +142,16 @@ describe('runCapture configuration', () => {
     expect(config.concurrency).toBeUndefined()
     expect(config.workspaceDir).toBeUndefined()
   })
+
+  test('CaptureConfig accepts prompts without promptsPath', () => {
+    const config: CaptureConfig = {
+      schemaPath: './test-schema.json',
+      prompts: [{ id: 't1', input: 'hello' }],
+    }
+
+    expect(config.promptsPath).toBeUndefined()
+    expect(config.prompts).toHaveLength(1)
+  })
 })
 
 // ============================================================================
@@ -168,6 +178,23 @@ describe('capture CLI', () => {
     expect(stdout).toContain('-s, --schema')
     expect(stdout).toContain('-j, --concurrency')
     expect(stdout).toContain('--workspace-dir')
+    expect(stdout).toContain('--stdin')
+  })
+
+  test('shows error for --stdin with positional file', async () => {
+    const proc = Bun.spawn(
+      ['bun', './bin/cli.ts', 'capture', '/tmp/prompts.jsonl', '--stdin', '-s', '/tmp/schema.json'],
+      {
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).not.toBe(0)
+    expect(stderr).toContain('--stdin and prompts file argument are mutually exclusive')
   })
 
   test('shows error for missing prompts file argument', async () => {

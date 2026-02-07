@@ -20,6 +20,7 @@ import {
   extractTrajectory,
   loadPrompts,
   logProgress,
+  readStdinPrompts,
   resolvePath,
   runWorkerPool,
   writeOutput,
@@ -29,7 +30,7 @@ import type { ParsedUpdate } from '../headless/headless-output-parser.ts'
 import { createSessionManager } from '../headless/headless-session-manager.ts'
 import { DEFAULT_HARNESS_TIMEOUT, DEFAULT_TRIAL_COUNT } from '../schemas/constants.ts'
 import { loadGrader } from '../schemas/grader-loader.ts'
-import type { Grader, TrialEntry, TrialResult } from '../schemas.ts'
+import type { Grader, PromptCase, TrialEntry, TrialResult } from '../schemas.ts'
 
 // ============================================================================
 // Pass@k/Pass^k Calculation
@@ -86,10 +87,12 @@ export const calculatePassExpK = (passes: number, k: number): number => {
 
 /** Configuration for trials command */
 export type TrialsConfig = {
-  /** Path to prompts.jsonl file */
-  promptsPath: string
+  /** Path to prompts.jsonl file (required unless prompts provided) */
+  promptsPath?: string
   /** Path to agent schema JSON file */
   schemaPath: string
+  /** Pre-loaded prompt cases (from stdin); skips file loading when set */
+  prompts?: PromptCase[]
   /** Number of trials per prompt */
   k: number
   /** Output file path */
@@ -138,6 +141,11 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
     workspaceDir,
   } = config
 
+  // Validate that we have a prompt source
+  if (!config.prompts && !promptsPath) {
+    throw new Error('Either promptsPath or prompts must be provided')
+  }
+
   // Load and validate schema
   const schemaFile = Bun.file(schemaPath)
   if (!(await schemaFile.exists())) {
@@ -152,8 +160,8 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
     throw new Error(`Invalid schema: ${error instanceof Error ? error.message : String(error)}`)
   }
 
-  // Load prompts
-  const prompts = await loadPrompts(promptsPath)
+  // Load prompts from pre-loaded array or file
+  const prompts = config.prompts ?? (await loadPrompts(promptsPath!))
 
   // Resolve paths
   const resolvedOutputPath = outputPath ? resolvePath(outputPath) : undefined
@@ -164,7 +172,7 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
   const effectiveTimeout = timeout ?? schemaTimeout ?? DEFAULT_HARNESS_TIMEOUT
 
   // Log progress info
-  logProgress(`Loaded ${prompts.length} prompts from ${promptsPath}`, progress)
+  logProgress(`Loaded ${prompts.length} prompts from ${promptsPath ?? 'stdin'}`, progress)
   logProgress(`Running ${k} trials per prompt (${prompts.length * k} total executions)`, progress)
   logProgress(`Schema: ${schema.name} (${schemaPath})`, progress)
   logProgress(`Timeout: ${effectiveTimeout}ms`, progress)
@@ -363,6 +371,7 @@ export const trials = async (args: string[]): Promise<void> => {
       append: { type: 'boolean', default: false },
       grader: { type: 'string', short: 'g' },
       debug: { type: 'boolean', default: false },
+      stdin: { type: 'boolean', default: false },
       concurrency: { type: 'string', short: 'j' },
       'workspace-dir': { type: 'string' },
       help: { type: 'boolean', short: 'h' },
@@ -373,6 +382,7 @@ export const trials = async (args: string[]): Promise<void> => {
   if (values.help) {
     console.log(`
 Usage: agent-eval-harness trials <prompts.jsonl> --schema <schema.json> [options]
+       cat prompts.jsonl | agent-eval-harness trials --stdin --schema <schema.json> [options]
 
 Arguments:
   prompts.jsonl     Input file with evaluation prompts
@@ -384,6 +394,7 @@ Options:
   -c, --cwd         Working directory for agent
   -t, --timeout     Request timeout in ms (overrides schema default)
   -j, --concurrency Number of concurrent workers (default: 1)
+  --stdin           Read prompts from stdin (mutually exclusive with file arg)
   --workspace-dir   Base directory for per-trial workspace isolation
   --progress        Show progress to stderr
   --append          Append to output file
@@ -428,13 +439,24 @@ Examples:
 
   # With TypeScript grader
   agent-eval-harness trials prompts.jsonl -s claude.json -k 5 --grader ./grader.ts -o trials.jsonl
+
+  # Read prompts from stdin (container orchestration)
+  cat prompts.jsonl | agent-eval-harness trials --stdin -s claude.json -k 5 -o trials.jsonl
 `)
     return
   }
 
   const promptsPath = positionals[0]
-  if (!promptsPath) {
-    console.error('Error: prompts.jsonl path is required')
+  const useStdin = values.stdin ?? false
+
+  // Mutual exclusivity: --stdin and positional file
+  if (useStdin && promptsPath) {
+    console.error('Error: --stdin and prompts file argument are mutually exclusive')
+    process.exit(1)
+  }
+
+  if (!useStdin && !promptsPath) {
+    console.error('Error: prompts.jsonl path is required (or use --stdin)')
     process.exit(1)
   }
 
@@ -442,6 +464,17 @@ Examples:
     console.error('Error: --schema is required')
     console.error('Example: agent-eval-harness trials prompts.jsonl --schema ./claude.json')
     process.exit(1)
+  }
+
+  // Read prompts from stdin if requested
+  let prompts: PromptCase[] | undefined
+  if (useStdin) {
+    const stdinPrompts = await readStdinPrompts()
+    if (!stdinPrompts || stdinPrompts.length === 0) {
+      console.error('Error: no prompts received on stdin')
+      process.exit(1)
+    }
+    prompts = stdinPrompts
   }
 
   // Load grader if specified
@@ -467,7 +500,8 @@ Examples:
   }
 
   await runTrials({
-    promptsPath,
+    promptsPath: promptsPath ?? undefined,
+    prompts,
     schemaPath: values.schema,
     k: Number.parseInt(values.k ?? String(DEFAULT_TRIAL_COUNT), 10),
     outputPath: values.output,
