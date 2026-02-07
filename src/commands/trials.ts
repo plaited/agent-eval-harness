@@ -111,6 +111,8 @@ export type TrialsConfig = {
   debug?: boolean
   /** Number of concurrent workers (default: 1 for sequential) */
   concurrency?: number
+  /** RSS limit in bytes; pauses spawning when process RSS exceeds this */
+  maxWorkersRss?: number
   /** Base directory for per-prompt workspace isolation */
   workspaceDir?: string
 }
@@ -138,6 +140,7 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
     grader,
     debug = false,
     concurrency = 1,
+    maxWorkersRss,
     workspaceDir,
   } = config
 
@@ -178,6 +181,9 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
   logProgress(`Timeout: ${effectiveTimeout}ms`, progress)
   if (concurrency > 1) {
     logProgress(`Concurrency: ${concurrency} workers`, progress)
+  }
+  if (maxWorkersRss) {
+    logProgress(`RSS limit: ${Math.round(maxWorkersRss / 1024 / 1024)}MB`, progress)
   }
   if (resolvedWorkspaceDir) {
     logProgress(`Workspace: ${resolvedWorkspaceDir}`, progress)
@@ -335,6 +341,13 @@ export const runTrials = async (config: TrialsConfig): Promise<TrialResult[]> =>
   // Run with worker pool (parallelizes across prompts, trials for each prompt run sequentially)
   const { results, errors } = await runWorkerPool(prompts, processPromptTrials, {
     concurrency,
+    maxWorkersRss,
+    onThrottle: (currentRss, limit) => {
+      logProgress(
+        `RSS throttle: ${Math.round(currentRss / 1024 / 1024)}MB > ${Math.round(limit / 1024 / 1024)}MB limit, pausing...`,
+        progress,
+      )
+    },
     onProgress: (completed, total) => {
       logProgress(`Progress: ${completed}/${total} prompts completed`, progress)
     },
@@ -373,6 +386,7 @@ export const trials = async (args: string[]): Promise<void> => {
       debug: { type: 'boolean', default: false },
       stdin: { type: 'boolean', default: false },
       concurrency: { type: 'string', short: 'j' },
+      'max-workers-rss': { type: 'string' },
       'workspace-dir': { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -395,6 +409,7 @@ Options:
   -t, --timeout     Request timeout in ms (overrides schema default)
   -j, --concurrency Number of concurrent workers (default: 1)
   --stdin           Read prompts from stdin (mutually exclusive with file arg)
+  --max-workers-rss RSS limit in MB; pauses spawning when exceeded
   --workspace-dir   Base directory for per-trial workspace isolation
   --progress        Show progress to stderr
   --append          Append to output file
@@ -499,6 +514,17 @@ Examples:
     concurrency = parsed
   }
 
+  // Validate and parse max-workers-rss (MB → bytes)
+  let maxWorkersRss: number | undefined
+  if (values['max-workers-rss']) {
+    const parsed = Number.parseInt(values['max-workers-rss'], 10)
+    if (Number.isNaN(parsed) || parsed < 1) {
+      console.error('Error: --max-workers-rss must be a positive integer (MB)')
+      process.exit(1)
+    }
+    maxWorkersRss = parsed * 1024 * 1024
+  }
+
   await runTrials({
     promptsPath: promptsPath ?? undefined,
     prompts,
@@ -512,6 +538,7 @@ Examples:
     grader,
     debug: values.debug ?? false,
     concurrency,
+    maxWorkersRss,
     workspaceDir: values['workspace-dir'],
   })
 }

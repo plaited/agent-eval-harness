@@ -152,6 +152,17 @@ describe('runCapture configuration', () => {
     expect(config.promptsPath).toBeUndefined()
     expect(config.prompts).toHaveLength(1)
   })
+
+  test('CaptureConfig accepts maxWorkersRss', () => {
+    const config: CaptureConfig = {
+      promptsPath: '/tmp/prompts.jsonl',
+      schemaPath: './test-schema.json',
+      concurrency: 4,
+      maxWorkersRss: 512 * 1024 * 1024,
+    }
+
+    expect(config.maxWorkersRss).toBe(512 * 1024 * 1024)
+  })
 })
 
 // ============================================================================
@@ -179,6 +190,23 @@ describe('capture CLI', () => {
     expect(stdout).toContain('-j, --concurrency')
     expect(stdout).toContain('--workspace-dir')
     expect(stdout).toContain('--stdin')
+    expect(stdout).toContain('--max-workers-rss')
+  })
+
+  test('shows error for invalid --max-workers-rss value', async () => {
+    const proc = Bun.spawn(
+      ['bun', './bin/cli.ts', 'capture', '/tmp/prompts.jsonl', '-s', '/tmp/schema.json', '--max-workers-rss', 'abc'],
+      {
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).not.toBe(0)
+    expect(stderr).toContain('--max-workers-rss must be a positive integer')
   })
 
   test('shows error for --stdin with positional file', async () => {
