@@ -24,7 +24,7 @@ src/
 ├── pipeline/       # Unix-style pipeline commands
 └── schemas/        # Zod schemas + types
 
-.claude/skills/     # AI agent skills
+.agents/skills/     # AI agent skills (symlinked to .claude/, .cursor/)
 ├── agent-eval-harness/
 └── headless-adapters/
 ```
@@ -44,15 +44,6 @@ ANTHROPIC_API_KEY=sk-... GEMINI_API_KEY=... \
   docker compose -f docker-compose.test.yml run --rm test
 ```
 
-## Quick Start
-
-```bash
-export ANTHROPIC_API_KEY=sk-...
-bunx @plaited/agent-eval-harness capture prompts.jsonl \
-  --schema .claude/skills/headless-adapters/schemas/claude-headless.json \
-  -o results.jsonl
-```
-
 ## Skills
 
 | Skill | Commands | Use Case |
@@ -60,7 +51,7 @@ bunx @plaited/agent-eval-harness capture prompts.jsonl \
 | **agent-eval-harness** | `capture`, `trials`, `summarize`, `calibrate`, `validate-refs`, `balance`, `schemas`, `run`, `extract`, `grade`, `format`, `compare` | Trajectory capture, training data, regression tests, A/B comparison |
 | **headless-adapters** | `headless` | Find/create/validate adapter schemas |
 
-**Install:** `curl -fsSL https://raw.githubusercontent.com/plaited/skills-installer/main/install.sh \| bash -s -- --agent <claude\|cursor\|copilot\|opencode\|amp\|goose\|factory> --project agent-eval-harness`
+**Install:** `npx skills add plaited/agent-eval-harness` or `bunx skills add plaited/agent-eval-harness`
 
 ## Constraints
 
@@ -76,7 +67,7 @@ bunx @plaited/agent-eval-harness capture prompts.jsonl \
 
 **Skill validation:**
 ```bash
-bunx @plaited/development-skills validate-skill .claude/skills/<name>
+bunx @plaited/development-skills validate-skill .agents/skills/<name>
 ```
 
 ## Workflow
@@ -86,7 +77,7 @@ bunx @plaited/development-skills validate-skill .claude/skills/<name>
 3. **Verify incrementally**: Run checks after each change
 4. **No over-engineering**: Only requested changes
 
-Development rules in `.plaited/rules/` - reference via @.plaited/rules/[name].md in CLAUDE.md
+Development rules in `.agents/rules/` - reference via @.agents/rules/[name].md in CLAUDE.md
 
 ## Learnings
 

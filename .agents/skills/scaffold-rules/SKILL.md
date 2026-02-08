@@ -34,7 +34,7 @@ bunx @plaited/development-skills scaffold-rules
 ```
 
 This will:
-1. Copy rules to `.plaited/rules/` (canonical location)
+1. Copy rules to `.agents/rules/` (canonical location)
 2. Create symlinks in `.claude/rules` and `.cursor/rules` (if those directories exist)
 3. Fallback: append links to `AGENTS.md` if no agent directories found
 
@@ -52,23 +52,23 @@ Tell the user what was created based on the `actions` output.
 ## How It Works
 
 ```
-.plaited/rules/          ← Canonical location (files copied here)
+.agents/rules/          ← Canonical location (files copied here)
     ├── testing.md
     ├── bun.md
     └── ...
 
-.claude/rules -> ../.plaited/rules   ← Symlink (if .claude/ exists)
-.cursor/rules -> ../.plaited/rules   ← Symlink (if .cursor/ exists)
+.claude/rules -> ../.agents/rules   ← Symlink (if .claude/ exists)
+.cursor/rules -> ../.agents/rules   ← Symlink (if .cursor/ exists)
 ```
 
 | Project has... | Copy | Symlinks | AGENTS.md |
 |----------------|------|----------|-----------|
-| `.plaited/` only | ✓ | None | No |
+| `.agents/` only | ✓ | None | No |
 | `.claude/` only | ✓ | `.claude/rules` | No |
 | `.cursor/` only | ✓ | `.cursor/rules` | No |
-| `.plaited/` + `.claude/` | ✓ | `.claude/rules` | No |
-| `.plaited/` + `.cursor/` | ✓ | `.cursor/rules` | No |
-| `.plaited/` + `.claude/` + `.cursor/` | ✓ | Both | No |
+| `.agents/` + `.claude/` | ✓ | `.claude/rules` | No |
+| `.agents/` + `.cursor/` | ✓ | `.cursor/rules` | No |
+| `.agents/` + `.claude/` + `.cursor/` | ✓ | Both | No |
 | None of the above | ✓ | None | ✓ Append links |
 
 ## Related Skills

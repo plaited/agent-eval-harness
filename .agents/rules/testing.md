@@ -14,7 +14,7 @@
 
 **Use real dependencies** - Prefer installed packages over mocks when testing module resolution  
 *Verify:* Review test imports for fake paths  
-*Fix:* Use actual package like `@modelcontextprotocol/sdk/client`
+*Fix:* Use actual package like `typescript`
 
 **Organize with describe** - Group related tests in `describe('feature', () => {...})`  
 *Verify:* Check for flat test structure  

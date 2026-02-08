@@ -25,7 +25,7 @@ export ANTHROPIC_API_KEY=sk-...   # For Claude
 export GEMINI_API_KEY=...         # For Gemini
 ```
 
-Pre-built schemas are available in `.plaited/skills/headless-adapters/schemas/` for Claude and Gemini.
+Pre-built schemas are available in `.agents/skills/headless-adapters/schemas/` for Claude and Gemini.
 
 ### Core Commands
 
@@ -98,10 +98,10 @@ bunx @plaited/agent-eval-harness compare trials1.jsonl trials2.jsonl -o comparis
 **Install skills** for use with AI coding agents:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/plaited/skills-installer/main/install.sh | bash -s -- --agents <agent-name> --project agent-eval-harness
+npx skills add plaited/agent-eval-harness
+# or
+bunx skills add plaited/agent-eval-harness
 ```
-
-Replace `<agent-name>` with your agent: `claude`, `cursor`, `copilot`, `opencode`, `amp`, `goose`, `factory`
 
 ### Available Skills
 
@@ -416,7 +416,7 @@ ANTHROPIC_API_KEY=sk-... GEMINI_API_KEY=... \
 ## Requirements
 
 - **Runtime:** Bun >= 1.2.9
-- **Schema:** JSON schema describing CLI agent interaction (see `.plaited/skills/headless-adapters/schemas/`)
+- **Schema:** JSON schema describing CLI agent interaction (see `.agents/skills/headless-adapters/schemas/`)
 - **API Key:** `ANTHROPIC_API_KEY` for Claude, `GEMINI_API_KEY` for Gemini
 
 ## License

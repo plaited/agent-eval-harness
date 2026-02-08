@@ -28,4 +28,4 @@
 - Code review: Read files before commenting
 - Patterns: Confirm examples reflect actual usage
 
-See .plaited/rules/testing.md for verification in test contexts.
+See .agents/rules/testing.md for verification in test contexts.
