@@ -69,6 +69,11 @@ jobs:
 
           # Extract major.minor.patch from current version (strip any prerelease suffix)
           base=$(echo "$current" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
+          if [[ -z "$base" ]]; then
+            echo "::error::Invalid current version format in package.json: $current"
+            echo "::error::Expected: X.Y.Z (e.g., 1.0.0)"
+            exit 1
+          fi
           IFS='.' read -r major minor patch <<< "$base"
 
           # Apply bump
