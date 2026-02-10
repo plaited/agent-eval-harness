@@ -26,10 +26,13 @@ import type {
   TrialsComparisonMeta,
   TrialsComparisonReport,
   TrialsFlakinessMetrics,
+  TrialsPerformanceMetrics,
   TrialsPromptComparison,
+  TrialsQualityMetrics,
   TrialsReliabilityMetrics,
 } from '../schemas.ts'
 import { TrialResultSchema } from '../schemas.ts'
+import { computeLatencyStats, percentile } from './compare-utils.ts'
 import type {
   ComparisonGraderResult,
   LabeledRun,
@@ -149,19 +152,6 @@ const getTrialsGrader = async (
 }
 
 /**
- * Compute percentile from sorted array.
- *
- * @param sorted - Sorted array of numbers
- * @param p - Percentile (0-1)
- * @returns Value at percentile
- */
-const percentile = (sorted: number[], p: number): number => {
-  if (sorted.length === 0) return 0
-  const idx = Math.floor(sorted.length * p)
-  return sorted[Math.min(idx, sorted.length - 1)] ?? 0
-}
-
-/**
  * Compute capability metrics from trial results.
  *
  * @param results - Array of trial results
@@ -242,6 +232,51 @@ const computeFlakinessMetrics = (results: TrialResult[], maxTopFlaky: number = 1
     medianFlakiness: percentile(sorted, 0.5),
     flakyPromptCount: flakinessData.filter((d) => d.flakiness > 0).length,
     topFlakyPrompts: topFlaky,
+  }
+}
+
+/**
+ * Compute quality metrics from trial results.
+ *
+ * @remarks
+ * Flattens all trial scores across all prompts into a single distribution.
+ * Returns undefined if no scores are present (no grader was used).
+ *
+ * @param results - Array of trial results
+ * @returns Quality metrics or undefined if no scores
+ */
+const computeTrialsQualityMetrics = (results: TrialResult[]): TrialsQualityMetrics | undefined => {
+  const scores = results.flatMap((r) => r.trials.filter((t) => t.score !== undefined).map((t) => t.score as number))
+
+  if (scores.length === 0) return undefined
+
+  const sorted = [...scores].sort((a, b) => a - b)
+  const sum = scores.reduce((a, b) => a + b, 0)
+
+  return {
+    avgScore: sum / scores.length,
+    medianScore: percentile(sorted, 0.5),
+    p25Score: percentile(sorted, 0.25),
+    p75Score: percentile(sorted, 0.75),
+  }
+}
+
+/**
+ * Compute performance metrics from trial results.
+ *
+ * @remarks
+ * Flattens all trial durations across all prompts into latency statistics.
+ * Always returns a value since TrialEntry.duration is required.
+ *
+ * @param results - Array of trial results
+ * @returns Performance metrics
+ */
+const computeTrialsPerformanceMetrics = (results: TrialResult[]): TrialsPerformanceMetrics => {
+  const durations = results.flatMap((r) => r.trials.map((t) => t.duration))
+
+  return {
+    latency: computeLatencyStats(durations),
+    totalDuration: durations.reduce((a, b) => a + b, 0),
   }
 }
 
@@ -399,6 +434,10 @@ export const runTrialsCompare = async (config: TrialsCompareConfig): Promise<Tri
   const capability: Record<string, TrialsCapabilityMetrics> = {}
   const reliability: Record<string, TrialsReliabilityMetrics> = {}
   const flakiness: Record<string, TrialsFlakinessMetrics> = {}
+  const quality: Record<string, TrialsQualityMetrics> = {}
+  const performance: Record<string, TrialsPerformanceMetrics> = {}
+
+  let hasQuality = false
 
   for (const label of runLabels) {
     const resultsMap = runResults[label] ?? new Map()
@@ -407,6 +446,13 @@ export const runTrialsCompare = async (config: TrialsCompareConfig): Promise<Tri
     capability[label] = computeCapabilityMetrics(results)
     reliability[label] = computeReliabilityMetrics(results)
     flakiness[label] = computeFlakinessMetrics(results)
+    performance[label] = computeTrialsPerformanceMetrics(results)
+
+    const qualityMetrics = computeTrialsQualityMetrics(results)
+    if (qualityMetrics) {
+      quality[label] = qualityMetrics
+      hasQuality = true
+    }
   }
 
   // Compute confidence intervals when using statistical strategy
@@ -432,6 +478,38 @@ export const runTrialsCompare = async (config: TrialsCompareConfig): Promise<Tri
       if (reliabilityMetrics) {
         reliabilityMetrics.confidenceIntervals = {
           avgPassExpK: bootstrap(passExpKValues, bootstrapConfig).ci,
+        }
+      }
+
+      // Quality CIs (only when scores present)
+      const qualityMetrics = quality[label]
+      if (qualityMetrics) {
+        const scores: number[] = []
+        for (const r of results) {
+          for (const t of r.trials) {
+            if (t.score !== undefined) scores.push(t.score)
+          }
+        }
+        if (scores.length > 0) {
+          qualityMetrics.confidenceIntervals = {
+            avgScore: bootstrap(scores, bootstrapConfig).ci,
+          }
+        }
+      }
+
+      // Performance CIs
+      const performanceMetrics = performance[label]
+      if (performanceMetrics) {
+        const durations: number[] = []
+        for (const r of results) {
+          for (const t of r.trials) {
+            durations.push(t.duration)
+          }
+        }
+        if (durations.length > 0) {
+          performanceMetrics.confidenceIntervals = {
+            latencyMean: bootstrap(durations, bootstrapConfig).ci,
+          }
         }
       }
     }
@@ -505,6 +583,8 @@ export const runTrialsCompare = async (config: TrialsCompareConfig): Promise<Tri
     capability,
     reliability,
     flakiness,
+    ...(hasQuality && { quality }),
+    performance,
     headToHead: {
       capability: capabilityPairwise,
       reliability: reliabilityPairwise,
@@ -528,8 +608,12 @@ export const runTrialsCompare = async (config: TrialsCompareConfig): Promise<Tri
   for (const [label, cap] of Object.entries(capability)) {
     const rel = reliability[label]
     const flak = flakiness[label]
+    const perf = performance[label]
+    const qual = quality[label]
+    const qualStr = qual ? ` avgScore=${qual.avgScore.toFixed(3)}` : ''
+    const perfStr = perf ? ` latencyP50=${perf.latency.p50.toFixed(0)}ms` : ''
     logProgress(
-      `  ${label}: passAtK=${cap?.avgPassAtK.toFixed(3)} passExpK=${rel?.avgPassExpK.toFixed(3)} flakiness=${flak?.avgFlakiness.toFixed(3)}`,
+      `  ${label}: passAtK=${cap?.avgPassAtK.toFixed(3)} passExpK=${rel?.avgPassExpK.toFixed(3)} flakiness=${flak?.avgFlakiness.toFixed(3)}${qualStr}${perfStr}`,
       progress,
     )
   }
@@ -617,6 +701,58 @@ const formatTrialsReportAsMarkdown = (report: TrialsComparisonReport): string =>
   lines.push('|-----|-----|--------|---------------|')
   for (const [label, f] of Object.entries(report.flakiness)) {
     lines.push(`| ${label} | ${f.avgFlakiness.toFixed(3)} | ${f.medianFlakiness.toFixed(3)} | ${f.flakyPromptCount} |`)
+  }
+  lines.push('')
+
+  // Quality table (only when scores present)
+  if (report.quality && Object.keys(report.quality).length > 0) {
+    const hasQualityCIs = Object.values(report.quality).some((q) => q.confidenceIntervals)
+
+    lines.push('## Quality (Scores)')
+    lines.push('')
+    if (hasQualityCIs) {
+      lines.push('| Run | Avg Score | 95% CI | Median | P25 | P75 |')
+      lines.push('|-----|-----------|--------|--------|-----|-----|')
+      for (const [label, q] of Object.entries(report.quality)) {
+        const avgCI = formatCI(q.confidenceIntervals?.avgScore)
+        lines.push(
+          `| ${label} | ${q.avgScore.toFixed(3)} | ${avgCI} | ${q.medianScore.toFixed(3)} | ${q.p25Score.toFixed(3)} | ${q.p75Score.toFixed(3)} |`,
+        )
+      }
+    } else {
+      lines.push('| Run | Avg Score | Median | P25 | P75 |')
+      lines.push('|-----|-----------|--------|-----|-----|')
+      for (const [label, q] of Object.entries(report.quality)) {
+        lines.push(
+          `| ${label} | ${q.avgScore.toFixed(3)} | ${q.medianScore.toFixed(3)} | ${q.p25Score.toFixed(3)} | ${q.p75Score.toFixed(3)} |`,
+        )
+      }
+    }
+    lines.push('')
+  }
+
+  // Performance table (always present)
+  const hasPerfCIs = Object.values(report.performance).some((p) => p.confidenceIntervals)
+
+  lines.push('## Performance (Latency)')
+  lines.push('')
+  if (hasPerfCIs) {
+    lines.push('| Run | P50 (ms) | P90 (ms) | P99 (ms) | Mean (ms) | 95% CI | Total (ms) |')
+    lines.push('|-----|----------|----------|----------|-----------|--------|------------|')
+    for (const [label, p] of Object.entries(report.performance)) {
+      const latencyCI = formatCI(p.confidenceIntervals?.latencyMean, 0)
+      lines.push(
+        `| ${label} | ${p.latency.p50.toFixed(0)} | ${p.latency.p90.toFixed(0)} | ${p.latency.p99.toFixed(0)} | ${p.latency.mean.toFixed(0)} | ${latencyCI} | ${p.totalDuration.toFixed(0)} |`,
+      )
+    }
+  } else {
+    lines.push('| Run | P50 (ms) | P90 (ms) | P99 (ms) | Mean (ms) | Total (ms) |')
+    lines.push('|-----|----------|----------|----------|-----------|------------|')
+    for (const [label, p] of Object.entries(report.performance)) {
+      lines.push(
+        `| ${label} | ${p.latency.p50.toFixed(0)} | ${p.latency.p90.toFixed(0)} | ${p.latency.p99.toFixed(0)} | ${p.latency.mean.toFixed(0)} | ${p.totalDuration.toFixed(0)} |`,
+      )
+    }
   }
   lines.push('')
 

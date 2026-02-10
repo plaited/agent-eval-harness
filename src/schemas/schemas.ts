@@ -924,6 +924,70 @@ export const TrialsFlakinessMetricsSchema = z.object({
 export type TrialsFlakinessMetrics = z.infer<typeof TrialsFlakinessMetricsSchema>
 
 /**
+ * Confidence intervals for trials quality metrics.
+ */
+export const TrialsQualityConfidenceIntervalsSchema = z.object({
+  /** CI for avgScore */
+  avgScore: ConfidenceIntervalSchema.optional(),
+})
+
+/** Trials quality confidence intervals type */
+export type TrialsQualityConfidenceIntervals = z.infer<typeof TrialsQualityConfidenceIntervalsSchema>
+
+/**
+ * Quality metrics for trials comparison (score-based).
+ *
+ * @remarks
+ * Aggregates grader scores across all trials for each prompt.
+ * Only present when a grader was used during trials capture.
+ */
+export const TrialsQualityMetricsSchema = z.object({
+  /** Average score across all trials */
+  avgScore: z.number(),
+  /** Median score */
+  medianScore: z.number(),
+  /** 25th percentile score */
+  p25Score: z.number(),
+  /** 75th percentile score */
+  p75Score: z.number(),
+  /** Confidence intervals (only with strategy=statistical) */
+  confidenceIntervals: TrialsQualityConfidenceIntervalsSchema.optional(),
+})
+
+/** Trials quality metrics type */
+export type TrialsQualityMetrics = z.infer<typeof TrialsQualityMetricsSchema>
+
+/**
+ * Confidence intervals for trials performance metrics.
+ */
+export const TrialsPerformanceConfidenceIntervalsSchema = z.object({
+  /** CI for latency mean */
+  latencyMean: ConfidenceIntervalSchema.optional(),
+})
+
+/** Trials performance confidence intervals type */
+export type TrialsPerformanceConfidenceIntervals = z.infer<typeof TrialsPerformanceConfidenceIntervalsSchema>
+
+/**
+ * Performance metrics for trials comparison (latency-based).
+ *
+ * @remarks
+ * Aggregates trial durations across all prompts.
+ * Always present since TrialEntry.duration is required.
+ */
+export const TrialsPerformanceMetricsSchema = z.object({
+  /** End-to-end latency statistics across all trials */
+  latency: LatencyStatsSchema,
+  /** Sum of all trial durations in milliseconds */
+  totalDuration: z.number(),
+  /** Confidence intervals (only with strategy=statistical) */
+  confidenceIntervals: TrialsPerformanceConfidenceIntervalsSchema.optional(),
+})
+
+/** Trials performance metrics type */
+export type TrialsPerformanceMetrics = z.infer<typeof TrialsPerformanceMetricsSchema>
+
+/**
  * Per-prompt metrics for trials comparison drill-down.
  */
 export const TrialsPromptComparisonSchema = z.object({
@@ -984,6 +1048,10 @@ export const TrialsComparisonReportSchema = z.object({
   reliability: z.record(z.string(), TrialsReliabilityMetricsSchema),
   /** Flakiness metrics by run label */
   flakiness: z.record(z.string(), TrialsFlakinessMetricsSchema),
+  /** Quality metrics by run label (only when grader scores are present) */
+  quality: z.record(z.string(), TrialsQualityMetricsSchema).optional(),
+  /** Performance metrics by run label (always present, uses trial.duration) */
+  performance: z.record(z.string(), TrialsPerformanceMetricsSchema),
   /** Head-to-head comparison details */
   headToHead: z.object({
     /** Pairwise wins by capability */

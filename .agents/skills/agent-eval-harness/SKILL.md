@@ -408,6 +408,8 @@ COMPARE_CAPABILITY=0.5 COMPARE_RELIABILITY=0.3 COMPARE_CONSISTENCY=0.2 \
 | **Capability** (passAtK) | Can solve at least once in K tries | `1 - (1-p)^k` |
 | **Reliability** (passExpK) | Solves consistently every time | `p^k` |
 | **Flakiness** | Gap between capability and reliability | `passAtK - passExpK` |
+| **Quality** (scores) | Aggregate grader scores across trials | avg/median/p25/p75 (only with grader) |
+| **Performance** (latency) | Aggregate trial durations | p50/p90/p99/mean/min/max (always present) |
 
 ### Built-in Comparison Strategies
 
@@ -471,18 +473,24 @@ With `--strategy statistical`, quality and performance metrics include 95% confi
 ```json
 {
   "meta": { "generatedAt": "...", "runs": ["claude", "gemini"], "promptCount": 50, "trialsPerPrompt": 5, "inputFormat": "trials" },
-  "capability": { "claude": { "avgPassAtK": 0.92, "medianPassAtK": 0.95 }, ... },
-  "reliability": { "claude": { "type": "trial", "avgPassExpK": 0.78, "medianPassExpK": 0.82 }, ... },
-  "flakiness": { "claude": { "avgFlakiness": 0.14, "flakyPromptCount": 12 }, ... },
+  "capability": { "claude": { "avgPassAtK": 0.92, "medianPassAtK": 0.95 }, "gemini": { "..." : "..." } },
+  "reliability": { "claude": { "type": "trial", "avgPassExpK": 0.78, "medianPassExpK": 0.82 }, "gemini": { "..." : "..." } },
+  "flakiness": { "claude": { "avgFlakiness": 0.14, "flakyPromptCount": 12 }, "gemini": { "..." : "..." } },
+  "quality": { "claude": { "avgScore": 0.85, "medianScore": 0.90, "p25Score": 0.75, "p75Score": 0.95 }, "gemini": { "..." : "..." } },
+  "performance": { "claude": { "latency": { "p50": 1200, "p90": 3400, "p99": 5100, "mean": 1500, "min": 800, "max": 5200 }, "totalDuration": 375000 }, "gemini": { "..." : "..." } },
   "headToHead": {
     "capability": [{ "runA": "claude", "runB": "gemini", "aWins": 28, "bWins": 18, "ties": 4 }],
-    "reliability": [...],
-    "overall": [...]
+    "reliability": ["..."],
+    "overall": ["..."]
   }
 }
 ```
 
-With `--strategy statistical`, capability and reliability metrics include 95% confidence intervals:
+**Notes:**
+- `quality` is only present when a grader was used (trials have `score` fields)
+- `performance` is always present (every trial has `duration`)
+
+With `--strategy statistical`, capability, reliability, quality, and performance metrics include 95% confidence intervals:
 
 ```json
 {
@@ -497,6 +505,18 @@ With `--strategy statistical`, capability and reliability metrics include 95% co
       "type": "trial",
       "avgPassExpK": 0.78,
       "confidenceIntervals": { "avgPassExpK": [0.72, 0.84] }
+    }
+  },
+  "quality": {
+    "claude": {
+      "avgScore": 0.85,
+      "confidenceIntervals": { "avgScore": [0.82, 0.88] }
+    }
+  },
+  "performance": {
+    "claude": {
+      "latency": { "mean": 1500 },
+      "confidenceIntervals": { "latencyMean": [1380, 1620] }
     }
   }
 }
@@ -530,6 +550,7 @@ import type { TrialsComparisonGrader } from '@plaited/agent-eval-harness/pipelin
 
 export const grade: TrialsComparisonGrader = async ({ id, input, hint, runs }) => {
   // runs is Record<string, { passAtK?, passExpK?, k, trials }>
+  // Each trial in trials has: { duration, score?, pass?, output, trajectory }
   return {
     rankings: [
       { run: 'claude', rank: 1, score: 0.92 },

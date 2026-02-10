@@ -100,18 +100,26 @@ The statistical strategy adds `confidenceIntervals` to quality and performance m
   "capability": {
     "run-a": {
       "avgPassAtK": 0.92,
-      "confidenceIntervals": {
-        "avgPassAtK": [0.88, 0.95]
-      }
+      "confidenceIntervals": { "avgPassAtK": [0.88, 0.95] }
     }
   },
   "reliability": {
     "run-a": {
       "type": "trial",
       "avgPassExpK": 0.78,
-      "confidenceIntervals": {
-        "avgPassExpK": [0.72, 0.84]
-      }
+      "confidenceIntervals": { "avgPassExpK": [0.72, 0.84] }
+    }
+  },
+  "quality": {
+    "run-a": {
+      "avgScore": 0.85,
+      "confidenceIntervals": { "avgScore": [0.82, 0.88] }
+    }
+  },
+  "performance": {
+    "run-a": {
+      "latency": { "mean": 1500 },
+      "confidenceIntervals": { "latencyMean": [1380, 1620] }
     }
   }
 }
@@ -450,6 +458,13 @@ weighted = (run["passAtK"] * 0.5) + (run["passExpK"] * 0.3) + consistency * 0.2
 llm = llm_judge_best_trial(run["trials"])
 final = (weighted * 0.5) + (llm * 0.5)
 ```
+
+The trials comparison report also includes **quality** and **performance** metrics when available:
+
+- **Quality** (optional): `avgScore`, `medianScore`, `p25Score`, `p75Score` — aggregated from `trial.score` across all prompts. Only present when a grader was used during trials capture.
+- **Performance** (always present): `latency` (p50/p90/p99/mean/min/max), `totalDuration` — aggregated from `trial.duration` across all prompts.
+
+With `--strategy statistical`, both include `confidenceIntervals` (`avgScore` CI for quality, `latencyMean` CI for performance).
 
 ## Related Documentation
 
