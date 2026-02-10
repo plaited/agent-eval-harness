@@ -14,20 +14,23 @@ import { buildTrialsIndex, runTrialsCompare } from '../compare-trials.ts'
 // Test Fixtures
 // ============================================================================
 
-const createTrialResult = (id: string, passAtK: number, passExpK: number, k: number = 3) => ({
+const createTrialResult = (
+  id: string,
+  passAtK: number,
+  passExpK: number,
+  k: number = 3,
+  includeScores: boolean = true,
+) => ({
   id,
   input: `Prompt for ${id}`,
   k,
-  passRate: passAtK,
-  passAtK,
-  passExpK,
+  ...(includeScores && { passRate: passAtK, passAtK, passExpK }),
   trials: Array.from({ length: k }, (_, i) => ({
     trialNum: i + 1,
     output: `Output ${i + 1}`,
     trajectory: [],
     duration: 100 + i * 10,
-    pass: Math.random() < passAtK,
-    score: passAtK,
+    ...(includeScores && { pass: Math.random() < passAtK, score: passAtK }),
   })),
 })
 
@@ -416,5 +419,173 @@ describe('runTrialsCompare', () => {
     // Top flaky should include 'flaky' prompt
     const topFlakyIds = flak?.topFlakyPrompts.map((p) => p.id) ?? []
     expect(topFlakyIds).toContain('flaky')
+  })
+
+  test('includes performance metrics with latency stats', async () => {
+    const run1Path = `${tempDir}/perf-run1.jsonl`
+    const run2Path = `${tempDir}/perf-run2.jsonl`
+
+    const trial1 = createTrialResult('test-001', 0.9, 0.7)
+    const trial2 = createTrialResult('test-001', 0.8, 0.6)
+
+    await Bun.write(run1Path, JSON.stringify(trial1))
+    await Bun.write(run2Path, JSON.stringify(trial2))
+
+    const report = await runTrialsCompare({
+      runs: [
+        { label: 'run1', path: run1Path },
+        { label: 'run2', path: run2Path },
+      ],
+      progress: false,
+    })
+
+    // Performance should always be present
+    expect(report.performance).toBeDefined()
+    expect(report.performance.run1).toBeDefined()
+    expect(report.performance.run2).toBeDefined()
+
+    const perf = report.performance.run1
+    expect(perf?.latency).toBeDefined()
+    expect(perf?.latency.p50).toBeGreaterThan(0)
+    expect(perf?.latency.mean).toBeGreaterThan(0)
+    expect(perf?.latency.min).toBeGreaterThan(0)
+    expect(perf?.latency.max).toBeGreaterThan(0)
+    expect(perf?.totalDuration).toBeGreaterThan(0)
+  })
+
+  test('includes quality metrics when scores are present', async () => {
+    const run1Path = `${tempDir}/qual-run1.jsonl`
+    const run2Path = `${tempDir}/qual-run2.jsonl`
+
+    // createTrialResult always includes score fields
+    const trial1 = createTrialResult('test-001', 0.9, 0.7)
+    const trial2 = createTrialResult('test-001', 0.8, 0.6)
+
+    await Bun.write(run1Path, JSON.stringify(trial1))
+    await Bun.write(run2Path, JSON.stringify(trial2))
+
+    const report = await runTrialsCompare({
+      runs: [
+        { label: 'run1', path: run1Path },
+        { label: 'run2', path: run2Path },
+      ],
+      progress: false,
+    })
+
+    // Quality should be present since trials have scores
+    expect(report.quality).toBeDefined()
+    expect(report.quality?.run1).toBeDefined()
+
+    const qual = report.quality?.run1
+    expect(qual?.avgScore).toBeGreaterThan(0)
+    expect(qual?.medianScore).toBeGreaterThan(0)
+    expect(qual?.p25Score).toBeDefined()
+    expect(qual?.p75Score).toBeDefined()
+  })
+
+  test('omits quality metrics when scores are absent', async () => {
+    const run1Path = `${tempDir}/noqual-run1.jsonl`
+    const run2Path = `${tempDir}/noqual-run2.jsonl`
+
+    // Create trials without scores (includeScores=false)
+    const trial1 = createTrialResult('test-001', 0, 0, 3, false)
+    const trial2 = createTrialResult('test-001', 0, 0, 3, false)
+
+    await Bun.write(run1Path, JSON.stringify(trial1))
+    await Bun.write(run2Path, JSON.stringify(trial2))
+
+    const report = await runTrialsCompare({
+      runs: [
+        { label: 'run1', path: run1Path },
+        { label: 'run2', path: run2Path },
+      ],
+      progress: false,
+    })
+
+    // Quality should NOT be present since no trials have scores
+    expect(report.quality).toBeUndefined()
+
+    // Performance should still be present
+    expect(report.performance).toBeDefined()
+    expect(report.performance.run1?.latency.mean).toBeGreaterThan(0)
+  })
+
+  test('statistical strategy computes CIs for quality and performance', async () => {
+    const run1Path = `${tempDir}/ci-qp-run1.jsonl`
+    const run2Path = `${tempDir}/ci-qp-run2.jsonl`
+
+    const trials1 = [
+      createTrialResult('p1', 0.9, 0.8),
+      createTrialResult('p2', 0.85, 0.7),
+      createTrialResult('p3', 0.95, 0.9),
+    ]
+    const trials2 = [
+      createTrialResult('p1', 0.6, 0.4),
+      createTrialResult('p2', 0.5, 0.3),
+      createTrialResult('p3', 0.7, 0.5),
+    ]
+
+    await Bun.write(run1Path, trials1.map((t) => JSON.stringify(t)).join('\n'))
+    await Bun.write(run2Path, trials2.map((t) => JSON.stringify(t)).join('\n'))
+
+    const report = await runTrialsCompare({
+      runs: [
+        { label: 'high', path: run1Path },
+        { label: 'low', path: run2Path },
+      ],
+      strategy: 'statistical',
+      progress: false,
+    })
+
+    // Quality CIs
+    const highQual = report.quality?.high
+    expect(highQual).toBeDefined()
+    expect(highQual?.confidenceIntervals).toBeDefined()
+    expect(highQual?.confidenceIntervals?.avgScore).toBeDefined()
+
+    const qualCI = highQual?.confidenceIntervals?.avgScore
+    expect(qualCI).toHaveLength(2)
+    expect(qualCI?.[0]).toBeLessThanOrEqual(qualCI?.[1] ?? 0)
+
+    // Performance CIs
+    const highPerf = report.performance.high
+    expect(highPerf).toBeDefined()
+    expect(highPerf?.confidenceIntervals).toBeDefined()
+    expect(highPerf?.confidenceIntervals?.latencyMean).toBeDefined()
+
+    const perfCI = highPerf?.confidenceIntervals?.latencyMean
+    expect(perfCI).toHaveLength(2)
+    expect(perfCI?.[0]).toBeLessThanOrEqual(perfCI?.[1] ?? 0)
+  })
+
+  test('markdown output includes quality and performance tables', async () => {
+    const run1Path = `${tempDir}/md-qp-run1.jsonl`
+    const run2Path = `${tempDir}/md-qp-run2.jsonl`
+    const outputPath = `${tempDir}/qp-report.md`
+
+    const trial1 = createTrialResult('test-001', 0.9, 0.7)
+    const trial2 = createTrialResult('test-001', 0.8, 0.6)
+
+    await Bun.write(run1Path, JSON.stringify(trial1))
+    await Bun.write(run2Path, JSON.stringify(trial2))
+
+    await runTrialsCompare({
+      runs: [
+        { label: 'agent1', path: run1Path },
+        { label: 'agent2', path: run2Path },
+      ],
+      outputPath,
+      format: 'markdown',
+      progress: false,
+    })
+
+    const content = await Bun.file(outputPath).text()
+
+    // Should contain quality and performance sections
+    expect(content).toContain('## Quality (Scores)')
+    expect(content).toContain('## Performance (Latency)')
+    expect(content).toContain('Avg Score')
+    expect(content).toContain('P50 (ms)')
+    expect(content).toContain('Mean (ms)')
   })
 })
