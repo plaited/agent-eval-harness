@@ -6,6 +6,10 @@
 
 CLI tool for capturing agent trajectories from headless CLI agents. Execute prompts, capture full trajectories (tools, thoughts, plans), and output structured JSONL for downstream scoring. Available as both a CLI tool and as installable skills for AI coding agents.
 
+## Documentation
+
+- [CI eval policy](docs/ci-eval-policy.md) — PR smoke vs nightly pass@k gate, artifacts, thresholds, and pinned stack (summary of [CONTEXT.md](CONTEXT.md)).
+
 ## CLI Tool
 
 Use these tools directly via the CLI without installation:
