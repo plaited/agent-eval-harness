@@ -7,7 +7,6 @@
  */
 
 import { describe, expect, test } from 'bun:test'
-import * as z from 'zod'
 
 // ============================================================================
 // CLI Entry Point Routing
@@ -152,7 +151,7 @@ describe('parseCli', () => {
   })
 
   test('schema validation failure exits 2', async () => {
-    const { stderr, exitCode } = await runParseCli(['{"wrong": "field"}'])
+    const { exitCode } = await runParseCli(['{"wrong": "field"}'])
     expect(exitCode).toBe(2)
   })
 
