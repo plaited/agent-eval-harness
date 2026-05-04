@@ -285,6 +285,26 @@ describe('runTrial', () => {
     expect(trial!.pass).toBe(false)
   })
 
+  test('rejects k=0 for library callers', async () => {
+    await expect(
+      runTrial({
+        adapter: echoAdapter,
+        prompts: [{ id: 'bad-k', input: 'test' }],
+        k: 0,
+      }),
+    ).rejects.toThrow('k must be a positive integer')
+  })
+
+  test('rejects concurrency=0 for library callers', async () => {
+    await expect(
+      runTrial({
+        adapter: echoAdapter,
+        prompts: [{ id: 'bad-concurrency', input: 'test' }],
+        concurrency: 0,
+      }),
+    ).rejects.toThrow('concurrency must be a positive integer')
+  })
+
   test('rich adapter includes trajectory and timing', async () => {
     const results = await runTrial({
       adapter: richAdapter,
@@ -455,6 +475,22 @@ describe('CLI contract', () => {
   test('TrialInputSchema rejects missing adapterPath', () => {
     const result = TrialInputSchema.safeParse({
       promptsPath: './prompts.jsonl',
+    })
+    expect(result.success).toBe(false)
+  })
+
+  test('TrialInputSchema rejects k=0', () => {
+    const result = TrialInputSchema.safeParse({
+      adapterPath: './adapter.ts',
+      k: 0,
+    })
+    expect(result.success).toBe(false)
+  })
+
+  test('TrialInputSchema rejects concurrency=0', () => {
+    const result = TrialInputSchema.safeParse({
+      adapterPath: './adapter.ts',
+      concurrency: 0,
     })
     expect(result.success).toBe(false)
   })
@@ -706,6 +742,35 @@ describe('loadPolyglot', () => {
     const result = await grader({ input: 'test', output: 'hello' })
     expect(result.pass).toBe(true)
     expect(result.score).toBe(1.0)
+  })
+
+  test('rejects invalid TS module adapter output', async () => {
+    const adapterPath = tempFile('bad-adapter-output.ts')
+    await Bun.write(
+      adapterPath,
+      `export const adapt = async () => ({
+        bad: true,
+      })`,
+    )
+
+    const { loadAdapter } = await import('../trial.utils.ts')
+    const adapter = await loadAdapter(adapterPath)
+    await expect(adapter({ prompt: 'hello' })).rejects.toThrow('Invalid output:')
+  })
+
+  test('rejects invalid TS module grader output', async () => {
+    const graderPath = tempFile('bad-grader-output.ts')
+    await Bun.write(
+      graderPath,
+      `export const grade = async () => ({
+        pass: 'yes',
+        score: 1,
+      })`,
+    )
+
+    const { loadGrader } = await import('../trial.utils.ts')
+    const grader = await loadGrader(graderPath)
+    await expect(grader({ input: 'in', output: 'out' })).rejects.toThrow('Invalid output:')
   })
 
   test('rejects module without expected export', async () => {

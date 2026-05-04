@@ -106,6 +106,13 @@ export const runTrial = async (config: TrialConfig): Promise<TrialResult[]> => {
     append = false,
   } = config
 
+  if (!Number.isInteger(k) || k < 1) {
+    throw new Error('k must be a positive integer')
+  }
+  if (!Number.isInteger(concurrency) || concurrency < 1) {
+    throw new Error('concurrency must be a positive integer')
+  }
+
   const writeMutex = outputPath ? createWriteMutex() : undefined
 
   // Initialize output file
@@ -133,11 +140,15 @@ export const runTrial = async (config: TrialConfig): Promise<TrialResult[]> => {
         : cwd
 
       const start = Date.now()
+      let timeoutHandle: ReturnType<typeof setTimeout> | undefined
 
       try {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutHandle = setTimeout(() => reject(new Error('Trial timed out')), effectiveTimeout)
+        })
         const adapterResult = await Promise.race([
           adapter({ prompt: promptCase.input, cwd: promptCwd }),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Trial timed out')), effectiveTimeout)),
+          timeoutPromise,
         ])
 
         const duration = Date.now() - start
@@ -188,6 +199,10 @@ export const runTrial = async (config: TrialConfig): Promise<TrialResult[]> => {
           reasoning: `Error: ${error instanceof Error ? error.message : String(error)}`,
         })
         logProgress(`  Trial ${trialNum}/${k}: ERROR`, progress)
+      } finally {
+        if (timeoutHandle !== undefined) {
+          clearTimeout(timeoutHandle)
+        }
       }
     }
 
@@ -253,11 +268,11 @@ export const TrialInputSchema = z.object({
   adapterPath: z.string().describe('Path to adapter script (.ts/.js module or executable)'),
   promptsPath: z.string().optional().describe('Path to prompts.jsonl'),
   outputPath: z.string().optional().describe('Output file (default: stdout)'),
-  k: z.number().optional().default(1).describe('Trials per prompt'),
+  k: z.number().int().positive().optional().default(1).describe('Trials per prompt'),
   graderPath: z.string().optional().describe('Path to grader script'),
   cwd: z.string().optional().describe('Working directory for adapter'),
   timeout: z.number().optional().describe('Timeout per prompt in ms'),
-  concurrency: z.number().optional().default(1).describe('Concurrent workers'),
+  concurrency: z.number().int().positive().optional().default(1).describe('Concurrent workers'),
   workspaceDir: z.string().optional().describe('Per-prompt workspace isolation base dir'),
   progress: z.boolean().optional().default(false).describe('Show progress to stderr'),
   append: z.boolean().optional().default(false).describe('Append to output file'),

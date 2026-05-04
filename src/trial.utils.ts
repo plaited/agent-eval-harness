@@ -124,7 +124,18 @@ export const loadPolyglot = async <TFn>(
     if (typeof mod[exportName] !== 'function') {
       throw new Error(`Module must export a '${exportName}' function`)
     }
-    return mod[exportName] as TFn
+
+    const loadedFn = mod[exportName] as (input: unknown) => Promise<unknown> | unknown
+    const validatedFn = async (input: unknown): Promise<unknown> => {
+      const rawResult = await loadedFn(input)
+      const parsed = outputSchema.safeParse(rawResult)
+      if (!parsed.success) {
+        throw new Error(`Invalid output: ${parsed.error?.message}`)
+      }
+      return parsed.data
+    }
+
+    return validatedFn as TFn
   }
 
   // Executable: wrap as stdin/stdout JSON protocol
