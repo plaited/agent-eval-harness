@@ -10,7 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  validate:
+    name: on_pull_request
     runs-on: ubuntu-latest
 
     steps:
