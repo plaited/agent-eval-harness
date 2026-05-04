@@ -1,96 +1,46 @@
 ---
 name: compare-trials
-description: Compare trial results from the trial runner. Teaches agents to write comparison and analysis scripts against TrialResult JSONL files for pass@k reliability analysis, bootstrap confidence intervals, and flakiness detection.
+description: Analyze graded `trial_result` JSONL outputs from the eval pipeline, including reliability and custom slicing.
 license: ISC
 ---
 
 # Compare Trials
 
-## Purpose
-
-This skill teaches agents how to analyze and compare `TrialResult` JSONL output from the `trial` runner. Instead of a built-in comparison command, agents write scripts directly — the analysis is domain-specific and benefits from code-level flexibility.
-
-**Use this when:**
-- Comparing trial results from multiple adapter runs
-- Computing statistical metrics (bootstrap confidence intervals, effect sizes)
-- Analyzing flakiness (pass@k vs pass^k gap)
-- Generating comparison reports
-
-## TrialResult Schema
-
-Each line in a trial JSONL file matches this shape:
-
-```typescript
-type TrialResult = {
-  id: string                           // Prompt identifier
-  input: string | string[]             // Original prompt
-  hint?: string                        // Grader context
-  k: number                            // Trials per prompt
-  passRate?: number                    // passes / k
-  passAtK?: number                     // 1 - (1 - passRate)^k
-  passExpK?: number                    // passRate^k
-  trials: TrialEntry[]                 // Individual trial data
-  metadata?: Record<string, unknown>   // Custom metadata
-}
-
-type TrialEntry = {
-  trialNum: number
-  output: string
-  trajectory?: TrajectoryStep[]
-  duration: number                     // Wall-clock ms
-  timing?: { total?: number; inputTokens?: number; outputTokens?: number }
-  exitCode?: number | null
-  timedOut?: boolean
-  pass?: boolean
-  score?: number
-  reasoning?: string
-  outcome?: Record<string, unknown>
-}
-```
-
-## Key Metrics
-
-| Metric | Formula | Meaning |
-|--------|---------|---------|
-| `passRate` | passes / k | Raw success rate |
-| `passAtK` | 1 - (1 - passRate)^k | Capability — can it solve this at all? |
-| `passExpK` | passRate^k | Reliability — does it solve this every time? |
-| `flakiness` | passAtK - passExpK | Gap between capability and reliability |
-
-## How to Compare
-
-1. Load two (or more) JSONL files
-2. Index results by prompt `id`
-3. Compute aggregate metrics per run
-4. Bootstrap for confidence intervals
-5. Output comparison as structured JSON
-
-## Reference Implementation
-
-**[compare.ts](references/compare.ts)** — Complete comparison script
-
-Takes two JSONL file paths as arguments, loads and indexes them, computes per-run and per-prompt metrics, runs bootstrap resampling for confidence intervals, and outputs a structured comparison report.
-
-**[bootstrap.ts](references/bootstrap.ts)** — Bootstrap sampling utility
-
-Reusable bootstrap function for computing confidence intervals on any metric. Used by the comparison script for reliable statistical comparisons.
-
-## Usage Pattern
+Use this skill for analysis over graded JSONL outputs, typically after:
 
 ```bash
-# Agent writes and runs a comparison script
-bun run compare.ts baseline.jsonl challenger.jsonl > report.json
-
-# Or inline in the trial runner
-const results = await runTrial({ adapter, prompts, k: 10, grader })
-// Agent analyzes results array directly — no file round-trip needed
+agent-eval-harness eval '{"mode":"grade",...}' > graded.jsonl
 ```
 
-## Key Points for Agents
+## Default path
 
-- `TrialResult` files are JSONL (one JSON object per line)
-- Always match results by `id` — prompts may arrive in different order
-- Bootstrap needs at least 30 samples for reliable CIs (use 1000+ resamples)
-- Flakiness = passAtK - passExpK measures inconsistency
-- Token usage is optional — only present if the adapter reports it
-- Comparison is agent-written code, not a built-in command
+For normal baseline-vs-challenger comparisons, use:
+
+```bash
+agent-eval-harness eval '{"mode":"compare",...}'
+```
+
+Use custom scripts only when suite-specific analysis is required.
+
+## Custom analysis use cases
+
+- cost analysis
+- token usage analysis
+- slices by task metadata (category, difficulty, source)
+- custom regression gates
+- per-agent metadata summaries
+
+## Script guidance
+
+When writing a custom script:
+
+1. Parse JSONL rows as `trial_result`.
+2. Validate graded rows (`pass` and `score` non-null).
+3. Group by stable identity fields (`taskId`, `trialIndex`, `runId`).
+4. Separate:
+   - standalone run metrics
+   - comparable-overlap metrics
+5. Report uncertainty where possible (bootstrap confidence intervals).
+6. Use `exactPassAtK` naming for combinatorics-based pass@k metrics (do not label exact values as `estimatedPassAtK`).
+
+Reference helpers remain in `references/` for bootstrap/statistics utilities.

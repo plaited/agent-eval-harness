@@ -19,8 +19,8 @@
   },
   "type": "module",
   "exports": {
-    ".": "./src/trial.ts",
-    "./schemas": "./src/trial.schemas.ts"
+    ".": "./src/eval.ts",
+    "./schemas": "./src/eval.schemas.ts"
   },
   "files": [
     "./src/**",

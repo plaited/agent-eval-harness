@@ -1,22 +1,15 @@
 #!/usr/bin/env bun
-import { trialCli } from './trial.ts'
+import { evalCli } from './eval.ts'
 
 const [command, ...args] = process.argv.slice(2)
 
 switch (command) {
-  case 'trials':
-    await trialCli(args)
-    break
-  case 'compare':
-    console.error('compare command not yet implemented')
-    process.exit(1)
-    break
-  case 'calibrate':
-    console.error('calibrate command not yet implemented')
-    process.exit(1)
+  case 'eval':
+    await evalCli(args)
     break
   default:
     console.error(`Unknown command: ${command}`)
-    console.error('Available commands: trials, compare, calibrate')
+    console.error('Available commands: eval')
     process.exit(1)
+    break
 }

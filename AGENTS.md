@@ -10,19 +10,20 @@ General-purpose eval harness for CLI agents. It runs prompts through adapter scr
 
 | Capability | Notes |
 |------------|-------|
-| Multi-turn | `input: string | string[]` runs sequentially in one session |
-| Isolation | Fresh session and workspace per JSONL entry |
-| Parallel trials | Worker-pool concurrency with pass@k aggregation |
-| Polyglot hooks | TS/JS modules or executable stdin/stdout adapters and graders |
+| Multi-turn | `task.prompts: string[]` runs sequentially in adapter-owned session logic |
+| Streaming modes | `run` and `grade` stream compact `trial_result` JSONL to stdout |
+| Bounded modes | `compare` and `calibrate` emit one JSON object |
+| Command-only hooks | Adapters and command graders are argv-array commands with JSON stdin/stdout |
 
 ## Structure
 
 | Path | Purpose |
 |------|---------|
-| `src/cli.ts` | Unified CLI: `trials`, `compare`, `calibrate` |
-| `src/trial.ts` | Trial runner library and CLI handler |
-| `src/trial.schemas.ts` | Zod schemas and exported types |
-| `src/trial.utils.ts` | Loaders, worker pool, trajectory analysis |
+| `src/cli.ts` | CLI entry (`eval`) |
+| `src/eval.ts` | Eval mode execution and CLI handling |
+| `src/eval.schemas.ts` | Zod schemas and exported types |
+| `src/eval.utils.ts` | Shared eval utilities |
+| `src/eval.constants.ts` | Eval constants |
 | `src/tests/` | Unit tests |
 | `.agents/skills/trial-runner/` | Running trials and reading results |
 | `.agents/skills/trial-adapters/` | Adapter authoring |
@@ -40,20 +41,21 @@ General-purpose eval harness for CLI agents. It runs prompts through adapter scr
 ## CLI
 
 ```bash
-bunx @plaited/agent-eval-harness trials '{"adapterPath":"./adapter.ts","promptsPath":"./prompts.jsonl","k":3}'
+bunx @plaited/agent-eval-harness eval '{"mode":"run","tasksPath":"./tasks.jsonl","adapter":{"command":["bun","./adapter.ts"]}}'
 ```
 
-| Subcommand | Status | Purpose |
-|------------|--------|---------|
-| `trials` | Implemented | Run adapters with optional grading |
-| `compare` | Stub | Compare trial result sets |
-| `calibrate` | Stub | Calibrate graders |
+| Mode | Status | Purpose |
+|------|--------|---------|
+| `run` | Implemented | Execute adapter command over tasks JSONL and stream raw rows |
+| `grade` | Implemented | Apply ordered graders and stream graded rows |
+| `compare` | Implemented | Compare two graded trial-result sets |
+| `calibrate` | Implemented | Sample graded rows for reviewer calibration |
 
 ## Package Exports
 
 | Import | Exports |
 |--------|---------|
-| `@plaited/agent-eval-harness` | `runTrial`, `calculatePassAtK`, `calculatePassExpK`, `trialCli` |
+| `@plaited/agent-eval-harness` | `evalCli`, `runEval`, `runEvalTrials`, `gradeEvalRows`, `compareEvalRuns`, `calibrateEvalRun` |
 | `@plaited/agent-eval-harness/schemas` | Zod schemas and types |
 
 ## Verification
@@ -152,7 +154,7 @@ Never use `--no-verify`; fix hook failures.
 *Fix:* Add or sync TSDoc from signatures, tests, schemas, and real usages.
 
 **Type docs** - Exported object/generic types document every property and template parameter.
-*Verify:* Review exported `type` declarations in `src/trial.schemas.ts` and boundary exports.
+*Verify:* Review exported `type` declarations in `src/eval.schemas.ts` and boundary exports.
 *Fix:* Add `@property`, `@template`, constraints, validation notes, and related schema links.
 
 **Internal docs** - Non-public helpers with non-obvious behavior use `@internal` TSDoc.
