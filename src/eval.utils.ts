@@ -35,13 +35,35 @@ export const resolveCommand = (command: string[]): string[] => {
   return [resolved, ...rest]
 }
 
-export const sanitizeLabelPart = (value: string): string =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48)
+export const sanitizeLabelPart = (value: string): string => {
+  const trimmed = value.trim().toLowerCase()
+  let output = ''
+
+  for (const char of trimmed) {
+    const isAlphaNumeric = (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9')
+    if (isAlphaNumeric || char === '.' || char === '_' || char === '-') {
+      output += char
+      continue
+    }
+
+    const previous = output.at(-1)
+    if (previous !== '-') {
+      output += '-'
+    }
+  }
+
+  let start = 0
+  while (start < output.length && output[start] === '-') {
+    start += 1
+  }
+
+  let end = output.length
+  while (end > start && output[end - 1] === '-') {
+    end -= 1
+  }
+
+  return output.slice(start, end).slice(0, 48)
+}
 
 export const inferLabel = (command: string[]): string => {
   const first = command[0]
