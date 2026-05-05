@@ -1,5 +1,9 @@
 # @plaited/agent-eval-harness
 
+[![npm version](https://img.shields.io/npm/v/@plaited/agent-eval-harness.svg)](https://www.npmjs.com/package/@plaited/agent-eval-harness)
+[![CI](https://github.com/plaited/agent-eval-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/plaited/agent-eval-harness/actions/workflows/ci.yml)
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
+
 General-purpose eval harness for CLI agents with one entrypoint:
 
 ```bash
