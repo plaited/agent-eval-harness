@@ -6,6 +6,14 @@ General-purpose eval harness for CLI agents with one entrypoint:
 agent-eval-harness eval '<json>'
 ```
 
+## Usage policy
+
+- Use skills to generate and operate eval suites that call this CLI.
+- Use skills to generate adapters for those suites.
+- Do not hand-code eval orchestration outside the skill workflows.
+- Use `skills/trial-runner`, `skills/trial-adapters`, and `skills/compare-trials` as canonical workflows.
+- `.agents/skills/*` paths are compatibility symlinks to the root `skills/` directory.
+
 ## Modes
 
 - `run`: run one adapter command over tasks JSONL and stream raw `trial_result` rows (JSONL).
