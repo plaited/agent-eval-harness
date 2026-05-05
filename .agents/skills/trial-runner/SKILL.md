@@ -1,6 +1,6 @@
 ---
 name: trial-runner
-description: End-to-end eval-suite orchestration with the `eval` command: run -> grade -> compare -> calibrate, using strict JSON contracts and schema discovery.
+description: "End-to-end eval-suite orchestration with the `eval` command: run -> grade -> compare -> calibrate, using strict JSON contracts and schema discovery."
 license: ISC
 ---
 
@@ -57,4 +57,3 @@ agent-eval-harness eval '{"mode":"calibrate",...}'
 - CI gating policy
 - cost/token analysis scripts
 - secrets via environment/wrappers (not JSON config)
-
