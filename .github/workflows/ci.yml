@@ -10,23 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  # Detect which paths changed to conditionally run expensive jobs
-  changes:
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    outputs:
-      src: ${{ steps.filter.outputs.src }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            src:
-              - 'src/**'
-
-  test-pr:
+  validate:
+    name: on_pull_request
     runs-on: ubuntu-latest
 
     steps:
@@ -40,20 +25,3 @@ jobs:
         run: bun run check
       - name: Run test
         run: bun run test
-
-  # Required GitHub Secrets:
-  #   - ANTHROPIC_API_KEY: API key for Claude Code integration tests
-  #   - GEMINI_API_KEY: API key for Gemini CLI integration tests
-  test-integration:
-    needs: changes
-    if: ${{ needs.changes.outputs.src == 'true' }}
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run integration tests
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: docker compose -f docker-compose.test.yml run --rm test

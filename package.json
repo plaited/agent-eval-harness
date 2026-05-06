@@ -1,7 +1,7 @@
 {
   "name": "@plaited/agent-eval-harness",
-  "version": "0.13.0",
-  "description": "CLI tool for capturing agent trajectories from headless CLI agents",
+  "version": "0.14.0",
+  "description": "General-purpose eval harness for running trials against CLI agents",
   "license": "ISC",
   "engines": {
     "bun": ">= v1.2.9"
@@ -15,22 +15,17 @@
   },
   "homepage": "https://github.com/plaited/agent-eval-harness/tree/main#readme",
   "bin": {
-    "agent-eval-harness": "./bin/cli.ts"
+    "agent-eval-harness": "./src/cli.ts"
   },
   "type": "module",
   "exports": {
-    ".": "./src/harness.ts",
-    "./schemas": "./src/schemas.ts",
-    "./headless": "./src/headless.ts",
-    "./pipeline": "./src/pipeline.ts"
+    ".": "./src/eval.ts",
+    "./schemas": "./src/eval.schemas.ts"
   },
   "files": [
     "./src/**",
-    "./bin/**",
     "!./src/**/tests/*",
-    "!./src/**/*.spec.ts",
-    "!./bin/**/tests/*",
-    "!./bin/**/*.spec.ts"
+    "!./src/**/*.spec.ts"
   ],
   "publishConfig": {
     "access": "public"
@@ -42,10 +37,7 @@
     "check:types": "tsc --noEmit",
     "check:write": "biome check --write && format-package --write",
     "prepare": "git rev-parse --git-dir > /dev/null 2>&1 && git config core.hooksPath .hooks || true",
-    "test": "bun run test:bin && bun test:src",
-    "test:bin": "bun test bin/tests/*.spec.ts",
-    "test:integration": "bun test ./**/integration_tests/*.spec.ts",
-    "test:src": "bun test src/**/tests/*.spec.ts"
+    "test": "bun test src/"
   },
   "lint-staged": {
     "*.{js,cjs,jsx,tsx,ts}": [
@@ -56,14 +48,13 @@
     ]
   },
   "dependencies": {
-    "@plaited/development-skills": "0.8.0",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.14",
-    "@types/bun": "1.3.9",
+    "@biomejs/biome": "2.4.14",
+    "@types/bun": "1.3.13",
     "format-package": "7.0.0",
-    "lint-staged": "16.2.7",
-    "typescript": "5.9.3"
+    "lint-staged": "16.4.0",
+    "typescript": "6.0.3"
   }
 }

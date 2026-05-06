@@ -1,8 +1,9 @@
 {
-  "include": ["src", "bin"],
+  "include": ["src"],
   "compilerOptions": {
     // Enable latest features
     "lib": ["ESNext"],
+    "types": ["bun"],
     "target": "ESNext",
     "module": "Preserve",
     "moduleDetection": "force",

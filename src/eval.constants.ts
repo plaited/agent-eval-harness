@@ -1,0 +1,6 @@
+export const SCHEMA_VERSION = 1
+export const DEFAULT_K = 1
+export const DEFAULT_CONCURRENCY = 1
+export const DEFAULT_TIMEOUT_MS = 60_000
+export const DEFAULT_MAX_OUTPUT_BYTES = 256_000
+export const DEFAULT_CALIBRATE_LOG_BYTES = 64_000

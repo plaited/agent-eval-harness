@@ -4,357 +4,205 @@ Agent guidance for this repository.
 
 ## Overview
 
-CLI tool capturing agent trajectories from headless CLI agents. Executes prompts, captures tools/thoughts/plans, outputs JSONL for evaluation.
+General-purpose eval harness for CLI agents. It runs prompts through adapter scripts, captures trajectories, grades outputs, and writes JSONL trial results.
 
 ## Capabilities
 
-- **Multi-turn**: `input: string | string[]` executes sequentially in same session
-- **Isolation**: Fresh session per JSONL entry
-- **Parallelization**: `-j N` runs N prompts concurrently via worker pool
-- **Workspace isolation**: `--workspace-dir` creates per-prompt directories
-- **MCP auto-discovery**: No explicit `--mcp-server` flag needed
-- **Headless adapter**: Schema-driven JSON wrapper for any CLI agent
+| Capability | Notes |
+|------------|-------|
+| Multi-turn | `task.prompts: string[]` runs sequentially in adapter-owned session logic |
+| Streaming modes | `run` and `grade` stream compact `trial_result` JSONL to stdout |
+| Bounded modes | `compare` and `calibrate` emit one JSON object |
+| Command-only hooks | Adapters and command graders are argv-array commands with JSON stdin/stdout |
 
 ## Structure
 
-```
-src/
-├── harness/        # Core capture engine
-├── headless/       # Headless adapter implementation
-├── pipeline/       # Unix-style pipeline commands
-└── schemas/        # Zod schemas + types
-
-.agents/skills/     # AI agent skills (symlinked to .claude/, .cursor/)
-├── agent-eval-harness/
-└── headless-adapters/
-```
+| Path | Purpose |
+|------|---------|
+| `src/cli.ts` | CLI entry (`eval`) |
+| `src/eval.ts` | Eval mode execution and CLI handling |
+| `src/eval.schemas.ts` | Zod schemas and exported types |
+| `src/eval.utils.ts` | Shared eval utilities |
+| `src/eval.constants.ts` | Eval constants |
+| `src/tests/` | Unit tests |
+| `.agents/skills/trial-runner/` | Running trials and reading results |
+| `.agents/skills/trial-adapters/` | Adapter authoring |
+| `.agents/skills/compare-trials/` | Statistical comparison scripts |
 
 ## Commands
 
 | Command | Purpose |
 |---------|---------|
-| `bun install` | Setup (requires bun >= v1.2.9) |
-| `bun run check` | Type/lint/format check |
-| `bun run check:write` | Auto-fix lint/format |
-| `bun test` | Unit tests |
+| `bun install` | Setup; requires Bun >= v1.2.9 |
+| `bun run check` | Type, lint, format, package checks |
+| `bun run check:write` | Auto-fix lint/format/package ordering |
+| `bun test src/` | Unit tests |
 
-**Docker integration tests:**
+## CLI
+
 ```bash
-ANTHROPIC_API_KEY=sk-... GEMINI_API_KEY=... \
-  docker compose -f docker-compose.test.yml run --rm test
+bunx @plaited/agent-eval-harness eval '{"mode":"run","tasksPath":"./tasks.jsonl","adapter":{"command":["bun","./adapter.ts"]}}'
 ```
 
-## Skills
+| Mode | Status | Purpose |
+|------|--------|---------|
+| `run` | Implemented | Execute adapter command over tasks JSONL and stream raw rows |
+| `grade` | Implemented | Apply ordered graders and stream graded rows |
+| `compare` | Implemented | Compare two graded trial-result sets |
+| `calibrate` | Implemented | Sample graded rows for reviewer calibration |
 
-| Skill | Commands | Use Case |
-|-------|----------|----------|
-| **agent-eval-harness** | `capture`, `trials`, `summarize`, `calibrate`, `validate-refs`, `balance`, `schemas`, `run`, `extract`, `grade`, `format`, `compare` | Trajectory capture, training data, regression tests, A/B comparison |
-| **headless-adapters** | `headless` | Find/create/validate adapter schemas |
+## Package Exports
 
-**Install:** `npx skills add plaited/agent-eval-harness` or `bunx skills add plaited/agent-eval-harness`
-
-## Constraints
-
-- **Bun required**: >= v1.2.9
-- **ES2024**: Uses `Promise.withResolvers()` and modern APIs
+| Import | Exports |
+|--------|---------|
+| `@plaited/agent-eval-harness` | `evalCli`, `runEval`, `runEvalTrials`, `gradeEvalRows`, `compareEvalRuns`, `calibrateEvalRun` |
+| `@plaited/agent-eval-harness/schemas` | Zod schemas and types |
 
 ## Verification
 
-**Before commit:**
-- `bun run check` passes
-- `bun test` passes (unit tests)
-- No `--no-verify` on git commits
+Before commit:
 
-**Skill validation:**
 ```bash
-bunx @plaited/development-skills validate-skill .agents/skills/<name>
+bun run check
+bun test src/
 ```
 
-## Workflow
-
-1. **Plan first**: Use TodoWrite for multi-step tasks
-2. **Read before edit**: Verify current code before proposing changes
-3. **Verify incrementally**: Run checks after each change
-4. **No over-engineering**: Only requested changes
-
-Development rules in `.agents/rules/` - reference via @.agents/rules/[name].md in CLAUDE.md
-
-## Learnings
-
-*Dated entries from actual issues encountered will appear here*
+Never use `--no-verify`; fix hook failures.
 
 <!-- PLAITED-RULES-START -->
 
 ## Rules
 
-# Bun APIs
+### Workflow
 
-**Prefer Bun over Node.js** when running in Bun environment.
+**Skills first** - Before implementation, scan available skills and read each relevant `SKILL.md`.
+*Verify:* Relevant skills were evaluated and activated before edits.
+*Fix:* Pause, read the skill, then continue.
 
-**File system:**
-- `Bun.file(path).exists()` not `fs.existsSync()`
-- `Bun.file(path).text()` not `readFileSync()`
-- `Bun.write(path, data)` not `writeFileSync()`
-*Verify:* `grep 'from .node:fs' src/`  
-*Fix:* Replace with Bun.file/Bun.write
+**Verify first** - Read live files before describing behavior or recommending fixes.
+*Verify:* Claims cite current files, commands, or tests.
+*Fix:* Inspect source with `rg`, `sed`, or project tools before answering.
 
-**Shell commands:**
-- `Bun.$\`cmd\`` not `child_process.spawn()`
-*Verify:* `grep 'child_process' src/`  
-*Fix:* Replace with Bun.$ template literal
+**GitHub data** - Use `gh` for GitHub PRs/issues; include comments, reviews, inline comments, and code scanning alerts for PR evaluation.
+*Verify:* `gh pr view <n> --repo <owner>/<repo> --json title,body,comments,reviews,state`; `gh api repos/<owner>/<repo>/pulls/<n>/comments`; `gh api repos/<owner>/<repo>/code-scanning/alerts`
+*Fix:* Fetch missing sources before reviewing.
 
-**Path resolution:**
-- `Bun.resolveSync()` for module resolution
-- `import.meta.dir` for current directory
-- Keep `node:path` for join/resolve/dirname
-*Verify:* Check for `process.cwd()` misuse
+**Commits** - Conventional messages: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `test:`.
+*Verify:* `git log --oneline -5`
+*Fix:* Amend before push if format is wrong.
 
-**Executables:**
-- `Bun.which(cmd)` to check if command exists
-- `Bun.$\`bun add pkg\`` for package management
+### Bun And Modules
 
-**When Node.js OK:** readline (interactive input), node:path utilities, APIs without Bun equivalents
+**Bun APIs** - Prefer `Bun.file`, `Bun.write`, `Bun.$`, `Bun.which`, `Bun.resolveSync`, and `import.meta.dir` in Bun code.
+*Verify:* `rg "node:fs|child_process|existsSync|readFileSync|writeFileSync|process.cwd" src`
+*Fix:* Replace with Bun APIs unless Node APIs are justified.
 
-**Docs:** https://bun.sh/docs
+**Allowed Node APIs** - `node:path`, recursive `mkdir`, and `appendFile` are OK.
+*Verify:* Review any remaining Node imports.
+*Fix:* Keep only the allowed cases or add a clear reason.
 
+**No index files** - Use named boundary files, not `index.ts`.
+*Verify:* `find . -name index.ts`
+*Fix:* Move `feature/index.ts` to parent `feature.ts` or another explicit name.
 
-# Workflow
+**Explicit imports** - Relative TS imports include `.ts`; import directly inside a module, not through that module's re-export boundary.
+*Verify:* `rg "from ['\"]\\./" src` and inspect imports without `.ts`
+*Fix:* Add `.ts` and point at the defining file.
 
-## Git Commits
+**Module layout** - Use `feature.types.ts`, `feature.schemas.ts`, `feature.constants.ts`, and `feature.ts`; parent boundary files re-export child modules.
+*Verify:* `rg --files src`
+*Fix:* Rename or split files to match established layout.
 
-**Conventional commits** - `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `test:`  
-**Multi-line messages** - Use for detailed context  
-**Never --no-verify** - Fix the issue, don't bypass hooks  
-*Verify:* Check git log format
+### TypeScript
 
-## GitHub CLI
+**Type over interface** - Prefer `type User = {}` over `interface User {}`.
+*Verify:* `rg "interface [A-Z]" src`
+*Fix:* Convert to type aliases unless declaration merging is required.
 
-**Use `gh` over WebFetch** - Better data access, auth, private repos
+**No `any`** - Use `unknown` plus narrowing.
+*Verify:* `rg "[:<] any\\b|as any\\b" src`
+*Fix:* Add schema checks or type guards.
 
-**PR evaluation** - Fetch ALL sources:
-```bash
-# 1. Comments/reviews
-gh pr view <n> --repo <owner>/<repo> --json title,body,comments,reviews,state
+**Naming** - PascalCase types; Zod schemas end with `Schema`.
+*Verify:* Inspect exported types and `z.` declarations in `src/`.
+*Fix:* Rename type/schema symbols and references.
 
-# 2. Security alerts
-gh api repos/<owner>/<repo>/code-scanning/alerts
+**Arrow functions** - Prefer `const fn = () =>` over `function fn()`.
+*Verify:* `rg "function \\w" src`
+*Fix:* Convert to arrow functions unless syntax requires `function`.
 
-# 3. Inline comments
-gh api repos/<owner>/<repo>/pulls/<n>/comments
-```
+**Object params** - More than two arguments becomes one object parameter.
+*Verify:* Review changed function signatures; CLI entry points may take `args: string[]`.
+*Fix:* Replace positional groups with typed object params.
 
-**PR checklist:**
-- [ ] Human reviewer comments
-- [ ] AI code review comments  
-- [ ] Security alerts (ReDoS, injection)
-- [ ] Code quality comments
-- [ ] Inline suggestions
+**Private fields** - Use ECMAScript `#field`, not TypeScript `private field`.
+*Verify:* `rg "private \\w" src`
+*Fix:* Convert to `#field`.
 
-**URL patterns:**
-| URL | Command |
-|-----|---------|
-| `github.com/.../pull/<n>` | `gh pr view <n> --repo ...` |
-| `github.com/.../issues/<n>` | `gh issue view <n> --repo ...` |
-| `.../security/code-scanning/<id>` | `gh api .../code-scanning/alerts/<id>` |
+**JSON imports** - Use import attributes.
+*Verify:* `rg "from ['\"].*\\.json['\"]" src`
+*Fix:* Add `with { type: 'json' }`.
 
-**Review states:** `APPROVED`, `CHANGES_REQUESTED`, `COMMENTED`, `PENDING`
+**Suppression comments** - `@ts-ignore` needs a reason.
+*Verify:* `rg "@ts-ignore" src`
+*Fix:* Add the reason or remove the suppression.
 
+### Documentation For `src/`
 
-# Module Organization
+**Public TSDoc** - Exported APIs need concise TSDoc matching current code: summary, context, `@param`, `@returns`, `@remarks`, related `@see`, and `@public` when exported from package boundaries.
+*Verify:* Inspect matches from `rg "^export (const|type|class)|^export \\{" src`.
+*Fix:* Add or sync TSDoc from signatures, tests, schemas, and real usages.
 
-**No index.ts** - Never use index files, they create implicit magic  
-*Verify:* `find . -name 'index.ts'`  
-*Fix:* Rename to feature name: `feature/index.ts` → `feature.ts` at parent level
+**Type docs** - Exported object/generic types document every property and template parameter.
+*Verify:* Review exported `type` declarations in `src/eval.schemas.ts` and boundary exports.
+*Fix:* Add `@property`, `@template`, constraints, validation notes, and related schema links.
 
-**Explicit .ts extensions** - `import { x } from './file.ts'` not `'./file'`  
-*Verify:* `grep "from '\./.*[^s]'" src/` (imports without .ts)  
-*Fix:* Add `.ts` extension
+**Internal docs** - Non-public helpers with non-obvious behavior use `@internal` TSDoc.
+*Verify:* Review complex helpers, loaders, worker-pool code, and error handling.
+*Fix:* Document purpose, invariants, constraints, and complexity only where useful.
 
-**Re-export at boundaries** - Parent `feature.ts` re-exports from `feature/feature.ts`
+**No examples in TSDoc** - Tests are living examples.
+*Verify:* `rg "@example" src`
+*Fix:* Remove examples or move coverage into tests.
 
-```mermaid
-graph TD
-    A[src/] --> B[feature/]
-    A --> C[feature.ts]
-    B --> D[feature.ts]
-    B --> E[tests/]
-    E --> F[feature.spec.ts]
-    
-    C -.Re-exports.-> D
-```
+**Doc sync** - TSDoc parameter names, return descriptions, generics, and `@see` links must match current code.
+*Verify:* Compare comments with signatures, Zod schemas, and `rg` references.
+*Fix:* Update stale tags; remove orphaned docs for deleted code.
 
-**File organization within modules:**
-- `feature.types.ts` - Type definitions only
-- `feature.schemas.ts` - Zod schemas + `z.infer<>` types
-- `feature.constants.ts` - Constants, error codes
-- `feature.ts` - Main implementation
+**Comment hygiene** - Keep TSDoc, TODO, and FIXME; avoid timestamps, historical notes, obvious inline explanations, and rationale comments.
+*Verify:* `rg "// (Performance|Updated|This used to|Hack|Loop through|We do this)" src`
+*Fix:* Delete noise or move durable constraints into `@remarks`.
 
-**Direct imports** - Import from specific files, not through re-exports within module  
-*Verify:* Check for circular imports  
-*Fix:* Import directly: `from './feature.types.ts'` not `from './feature.ts'`
+### Testing
 
+**Use `test`** - Prefer `test(...)` over `it(...)`.
+*Verify:* `rg "\\bit\\(" src/**/*.spec.ts`
+*Fix:* Rename to `test(...)`.
 
-# Testing
+**No conditional assertions** - Assert existence first, then assert properties.
+*Verify:* `rg "if .*expect|&& .*expect" src/**/*.spec.ts`
+*Fix:* Split into explicit assertions.
 
-**Use test not it** - `test('description', ...)` instead of `it('...')`  
-*Verify:* `grep '\bit(' src/**/*.spec.ts`  
-*Fix:* Replace `it(` with `test(`
+**Branch coverage** - Try/catch, conditionals, fallbacks, and error paths need tests.
+*Verify:* Review changed branches against nearby tests.
+*Fix:* Add focused tests for missing paths.
 
-**No conditional assertions** - Never `if (x) expect(x.value)`  
-*Verify:* `grep 'if.*expect\|&&.*expect' src/**/*.spec.ts`  
-*Fix:* Assert condition first: `expect(x).toBeDefined(); expect(x.value)...`
+**Real dependencies** - Prefer installed packages over fake module-resolution fixtures.
+*Verify:* Review test imports and temp fixtures.
+*Fix:* Use real packages such as `typescript` when feasible.
 
-**Test both branches** - Try/catch, conditionals, fallbacks need both paths tested  
-*Verify:* Review test coverage for error paths  
-*Fix:* Add test for catch block, else branch, fallback case
+**Describe groups** - Group related tests with `describe`.
+*Verify:* Review spec structure.
+*Fix:* Add `describe('feature', () => { ... })`.
 
-**Use real dependencies** - Prefer installed packages over mocks when testing module resolution  
-*Verify:* Review test imports for fake paths  
-*Fix:* Use actual package like `typescript`
+### Markdown
 
-**Organize with describe** - Group related tests in `describe('feature', () => {...})`  
-*Verify:* Check for flat test structure  
-*Fix:* Add describe blocks by category (happy path, edge cases, errors)
+**Mermaid only** - No ASCII box drawing in markdown.
+*Verify:* `rg "[\\x{250c}\\x{2502}\\x{2514}\\x{2500}]" -g "*.md"`
+*Fix:* Replace diagrams with Mermaid or tables.
 
-**Coverage checklist** - Happy path, edge cases, error paths, real integrations  
-*Verify:* Review test file completeness
+## Learnings
 
-**Docker tests** - `*.docker.ts` for external APIs, run via docker-compose  
-*Verify:* Check if test needs API key or external service  
-*Fix:* Rename to `.docker.ts`, update CI gating
-
-**Run:** `bun test` before commit
-
-
-# Accuracy
-
-**95% confidence threshold** - Report uncertainty rather than guess
-
-**Verification first** - Read files before stating implementation details
-*Verify:* Did you read the file before commenting on it?
-
-**When uncertain:**
-- State the discrepancy clearly
-- Explain why you can't confidently recommend a fix
-- Present issue to user for resolution
-- Never invent solutions
-
-**TypeScript verification** - Use LSP tools for type-aware analysis:
-- `lsp-find` - Search symbols across workspace
-- `lsp-refs` - Find all usages before modifying
-- `lsp-hover` - Verify type signatures
-- `lsp-analyze` - Batch analysis of file structure
-
-**Dynamic exploration:**
-- Read tool for direct file verification
-- Grep/Glob for content and pattern searches
-- Prioritize live code over cached knowledge
-
-**Agent-specific applications:**
-- Documentation: Only update TSDoc if types match current code
-- Architecture: Verify patterns exist in codebase
-- Code review: Read files before commenting
-- Patterns: Confirm examples reflect actual usage
-
-See rules/testing.md for verification in test contexts.
-
-
-# Skill Activation
-
-**Evaluate before implementing** - Check available skills for relevance before starting work
-
-**Activation sequence:**
-
-1. **Evaluate** - For each skill in `<available_skills>`, assess: `[skill-name] - YES/NO - [reason]`
-2. **Activate** - Call `Skill(skill-name)` for each relevant skill before proceeding
-3. **Implement** - Begin work only after activation is complete
-
-*Verify:* Did you check available skills before starting implementation?
-*Fix:* Pause, evaluate skills, activate relevant ones, then continue
-
-**Example:**
-```
-- code-patterns: NO - not writing code
-- git-workflow: YES - need commit conventions
-- documentation: YES - writing README
-
-> Skill(git-workflow)
-> Skill(documentation)
-```
-
-**Activation before implementation** - Evaluating skills without calling `Skill()` provides no benefit
-*Verify:* Check that `Skill()` was called for each YES evaluation
-*Fix:* Call `Skill(skill-name)` for skipped activations
-
-
-# Documentation
-
-**TSDoc required** for public APIs
-
-**Template:**
-```typescript
-/**
- * Brief description
- *
- * @remarks
- * Additional context
- *
- * @param options - Description
- * @returns Description
- *
- * @public
- */
-```
-
-**No @example** - Tests are living examples  
-**Use @internal** - Mark non-public APIs  
-**Mermaid only** - No ASCII box-drawing diagrams  
-*Verify:* `grep '[┌│└─]' *.md`
-
-
-# Core Conventions
-
-**Type over interface** - `type User = {` instead of `interface User {`
-*Verify:* `lsp-find interface` or `grep 'interface [A-Z]' src/`
-*Fix:* Replace `interface X {` with `type X = {`
-
-**No any types** - Use `unknown` with type guards
-*Verify:* `grep ': any' src/`
-*Fix:* Replace `any` with `unknown`, add type guard
-
-**PascalCase types** - `type UserConfig`, schemas get `Schema` suffix: `UserConfigSchema`
-*Verify:* `lsp-find` for lowercase type names
-*Fix:* Rename to PascalCase
-
-**Arrow functions** - Prefer `const fn = () =>` over `function fn()`
-*Verify:* `grep 'function \w' src/`
-*Fix:* Convert to arrow function
-
-**Object params >2 args** - `fn({ a, b, c }: { ... })` not `fn(a, b, c)`
-*Exception:* CLI entry points take `args: string[]`
-*Verify:* Review function signatures with `lsp-hover`
-
-**Private fields** - Use `#field` (ES2022) not `private field` (TypeScript)
-*Verify:* `grep 'private \w' src/`
-*Fix:* Replace `private x` with `#x`
-
-**JSON imports** - `import x from 'file.json' with { type: 'json' }`
-*Verify:* `grep "from.*\.json['\"]" src/` (check for missing `with`)
-*Fix:* Add `with { type: 'json' }`
-
-**@ts-ignore needs description** - `// @ts-ignore - reason here`
-*Verify:* `grep '@ts-ignore' src/` (check for missing comment)
-
-**Short-circuit/ternary OK** - `condition && doSomething()` is acceptable
-
-**Empty interface extending single** - `interface Custom extends Base {}` is OK for branded types
-
-**Mermaid diagrams only** - No ASCII box-drawing in markdown
-*Verify:* `grep '[┌│└─]' *.md`
-
-**No @example in TSDoc** - Tests are living examples
-
-**AgentSkills validation** - `bunx @plaited/development-skills validate-skill <path>`
-
+- 2026-05-04: Keep `AGENTS.md` compact; move durable skill guidance into self-verifying rules instead of duplicating full skill workflows.
 
 <!-- PLAITED-RULES-END -->
