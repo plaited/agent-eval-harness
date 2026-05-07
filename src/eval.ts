@@ -208,6 +208,7 @@ const toInvocationEvidence = (params: {
 const runCommand = async (params: {
   commandSpec: z.infer<typeof RunEvalInputSchema.shape.adapter>
   stdinJson: string
+  cwd?: string
 }): Promise<{ invocation: CommandInvocation; stdout: string; stderr: string; timedOut: boolean }> => {
   const timeoutMs = params.commandSpec.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const maxOutputBytes = params.commandSpec.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES
@@ -221,7 +222,7 @@ const runCommand = async (params: {
     stdin: new TextEncoder().encode(params.stdinJson),
     stdout: 'pipe',
     stderr: 'pipe',
-    cwd: process.cwd(),
+    cwd: params.cwd ?? process.cwd(),
   })
 
   let timedOut = false
@@ -616,6 +617,7 @@ const runCommandGrader = async (params: {
     commandRun = await runCommand({
       commandSpec: params.grader.options,
       stdinJson,
+      cwd: params.cwd,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

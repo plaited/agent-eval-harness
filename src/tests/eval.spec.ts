@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { mkdir, rm } from 'node:fs/promises'
+import { mkdir, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { EvalInputSchema, TaskSchema } from '../eval.schemas.ts'
@@ -528,6 +528,54 @@ describe('grade mode', () => {
       expect(typeof invocation.stderrTruncated).toBe('boolean')
       expect(invocation.stdout).toContain('grader-stdout')
       expect(invocation.stderr).toContain('grader-stderr')
+    } finally {
+      await rm(dir, { force: true, recursive: true })
+    }
+  })
+
+  test('runs command graders from the trial cwd', async () => {
+    const dir = join(tmpdir(), `eval-grader-cwd-${Date.now()}`)
+    await mkdir(dir, { recursive: true })
+    try {
+      const cwd = await realpath(dir)
+      const row = createCompletedRow()
+      row.trial.cwd = cwd
+      const payload = JSON.stringify({
+        mode: 'grade',
+        graders: [
+          {
+            id: 'cwd-grader',
+            type: 'command',
+            options: {
+              command: [
+                'bun',
+                '-e',
+                'if (process.cwd() !== Bun.argv[1]) { process.stderr.write(process.cwd()); process.exit(1) }',
+                cwd,
+              ],
+              output: 'exit_code',
+            },
+          },
+        ],
+      })
+
+      const cliPath = `${import.meta.dir}/../cli.ts`
+      const proc = Bun.spawn(['bun', cliPath, 'eval', payload], {
+        stdin: new TextEncoder().encode(`${JSON.stringify(row)}\n`),
+        stdout: 'pipe',
+        stderr: 'pipe',
+      })
+      const [stdout, , exitCode] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+        proc.exited,
+      ])
+
+      expect(exitCode).toBe(0)
+      const graded = JSON.parse(stdout.trim())
+      const result = graded.graderResults[0]
+      expect(result.pass).toBe(true)
+      expect(result.outcome.invocation.exitCode).toBe(0)
     } finally {
       await rm(dir, { force: true, recursive: true })
     }
