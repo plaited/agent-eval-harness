@@ -240,11 +240,12 @@ const runCommand = async (params: {
   const stdoutData = retainOutput(stdoutRaw, maxOutputBytes)
   const stderrData = retainOutput(stderrRaw, maxOutputBytes)
   const completedAt = new Date().toISOString()
+  const signalCode = proc.signalCode ?? null
   const invocation = TrialSchema.shape.invocation.parse({
     command,
     resolvedCommand,
     exitCode: timedOut ? null : exitCode,
-    signalCode: null,
+    signalCode,
     timedOut,
     durationMs: Date.now() - startedMs,
     startedAt,
