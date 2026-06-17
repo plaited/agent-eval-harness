@@ -1,6 +1,6 @@
 {
   "name": "@plaited/agent-eval-harness",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "General-purpose eval harness for running trials against CLI agents",
   "license": "ISC",
   "engines": {
