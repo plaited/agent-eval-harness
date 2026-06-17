@@ -42,7 +42,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          token: ${{ secrets.GH_PAT }}
+          token: ${{ secrets.PLAITED_CI }}
 
       - name: Setup Node.js (for NPM OIDC)
         uses: actions/setup-node@v6
@@ -114,7 +114,7 @@ jobs:
 
       - name: Version
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ secrets.PLAITED_CI }}
           VERSION: ${{ steps.set_version.outputs.version }}
           IS_PRERELEASE: ${{ steps.set_version.outputs.is_prerelease }}
         run: |
