@@ -135,6 +135,56 @@ describe('run mode', () => {
       await rm(dir, { force: true, recursive: true })
     }
   })
+
+  test('captures signalCode when adapter is killed by timeout', async () => {
+    const dir = join(tmpdir(), `eval-run-timeout-${Date.now()}`)
+    await mkdir(dir, { recursive: true })
+
+    try {
+      const adapterPath = join(dir, 'adapter.js')
+      const tasksPath = join(dir, 'tasks.jsonl')
+
+      await Bun.write(
+        adapterPath,
+        [
+          '#!/usr/bin/env bun',
+          'await Bun.stdin.text()',
+          'await new Promise((resolve) => setTimeout(resolve, 60_000))',
+        ].join('\n'),
+      )
+      await Bun.$`chmod +x ${adapterPath}`.quiet()
+
+      await Bun.write(tasksPath, '{"id":"task-1","prompts":["hello"]}')
+
+      const payload = JSON.stringify({
+        mode: 'run',
+        tasksPath,
+        adapter: { command: [adapterPath], timeoutMs: 250 },
+        runId: 'run-timeout',
+        label: 'timeout-test',
+      })
+
+      const cliPath = `${import.meta.dir}/../cli.ts`
+      const proc = Bun.spawn(['bun', cliPath, 'eval', payload], {
+        stdout: 'pipe',
+        stderr: 'pipe',
+      })
+      const [stdout, , exitCode] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+        proc.exited,
+      ])
+
+      expect(exitCode).toBe(0)
+      const row = JSON.parse(stdout.trim())
+      expect(row.trial.result.status).toBe('timed_out')
+      expect(row.trial.invocation.timedOut).toBe(true)
+      expect(row.trial.invocation.exitCode).toBe(null)
+      expect(row.trial.invocation.signalCode).toBe('SIGTERM')
+    } finally {
+      await rm(dir, { force: true, recursive: true })
+    }
+  })
 })
 
 describe('grade mode', () => {
